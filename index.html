@@ -242,7 +242,14 @@
                 </div>
             </div>
 
-        <button onclick="resetAllData()" class="w-full text-red-600 text-xs font-bold py-4">DANGER: RESET ALL DATA</button>
+        <!-- Danger Zone / Database Reset -->
+        <div class="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-2">
+            <h3 class="font-bold text-sm text-red-700">Database Clean / Reset</h3>
+            <p class="text-xs text-red-600">Erase all members, meals, and expenses from both this device and Google Drive.</p>
+            <button onclick="resetAllData()" class="w-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2.5 rounded-xl transition">
+                🗑️ Clean & Reset Entire Database
+            </button>
+        </div>
     </section>
 
   </main>
@@ -557,7 +564,7 @@
             date: new Date().toISOString().split('T')[0]
         });
 
-        const payerName = mid === 'mess_fund' ? 'Common Fund' : (state.members.find(x=>x.id==mid)?.name || 'Member');
+        const payerName = state.members.find(x=>x.id==mid)?.name || (mid === 'mess_fund' ? 'Common Fund' : 'Member');
         addLog(`Added cost: ${amt} by ${payerName}`);
         save();
         document.getElementById('costAmount').value = '';
@@ -864,9 +871,8 @@
           }
         }
 
-        // Cost Dropdown
-        document.getElementById('costMember').innerHTML = `<option value="">Paid By...</option>` + 
-            `<option value="mess_fund">🏦 Mess Common Fund</option>` +
+        // Cost Dropdown (Only members)
+        document.getElementById('costMember').innerHTML = `<option value="">Paid By Member...</option>` + 
             state.members.map(m => `<option value="${m.id}">${m.name} (${m.phone || ''})</option>`).join('');
 
         // Cost list
@@ -951,7 +957,8 @@
         state.members = [];
         state.meals = {};
         state.costs = [];
-        state.logs = [{ user: 'Admin', time: new Date().toLocaleString(), action: 'Database cleared' }];
+        state.monthlyBackups = {};
+        state.logs = [{ user: 'Admin', time: new Date().toLocaleString(), action: 'Database cleared & reset to empty' }];
 
         localStorage.removeItem('mt_pro_data');
         localStorage.setItem('mt_pro_data', JSON.stringify(state));
