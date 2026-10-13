@@ -68,6 +68,21 @@
     </div>
   </div>
 
+  <!-- USER ACTIVITY MODAL (Last 30 Days) -->
+  <div id="userActivityModal" class="fixed inset-0 z-[120] bg-black/40 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-3 shadow-xl">
+      <div class="flex justify-between items-center border-b pb-2">
+        <div>
+          <h3 class="font-bold text-sm text-slate-900" id="activityModalTitle">User Activity</h3>
+          <p class="text-[10px] text-slate-500">Actions in the last 30 days</p>
+        </div>
+        <button onclick="closeUserActivityModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+      </div>
+      <div id="activityModalList" class="space-y-2 text-xs max-h-64 overflow-y-auto pr-1"></div>
+      <button onclick="closeUserActivityModal()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-xl text-xs font-bold">Close</button>
+    </div>
+  </div>
+
   <!-- HEADER (Exact Original Layout) -->
   <header class="no-print sticky top-0 z-30 bg-white/95 backdrop-blur border-b p-4">
     <div class="max-w-xl mx-auto flex justify-between items-center">
@@ -141,8 +156,25 @@
         </div>
       </div>
 
+      <!-- Monthly Reports Archive & History Backup -->
+      <div class="no-print bg-white border rounded-2xl p-4 space-y-3">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="text-xs font-bold uppercase text-slate-800">Monthly Reports Archive & Backup</h3>
+            <p class="text-[10px] text-slate-400">Save permanent monthly history snapshots</p>
+          </div>
+          <button onclick="archiveCurrentMonth()" class="text-xs bg-blue-50 text-blue-600 border border-blue-200 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-100 transition">
+            💾 Save Month Backup
+          </button>
+        </div>
+        <div id="archivedReportsList" class="space-y-2 text-xs max-h-40 overflow-y-auto"></div>
+      </div>
+
       <div class="no-print bg-white border rounded-2xl p-4">
-        <h3 class="text-xs font-bold uppercase mb-3">Audit Log (Change History)</h3>
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="text-xs font-bold uppercase">Audit Log (Change History)</h3>
+          <span class="text-[10px] text-slate-400">Click name to see 30-day activity</span>
+        </div>
         <div id="auditLog" class="space-y-2 text-[11px] max-h-40 overflow-y-auto"></div>
       </div>
     </section>
@@ -226,9 +258,11 @@
         members: [],
         meals: {},
         costs: [],
-        logs: []
+        logs: [],
+        monthlyBackups: {}
     };
 
+    if (!state.monthlyBackups) state.monthlyBackups = {};
     if (!state.adminPin) state.adminPin = "@nokib";
     // Always use the configured default URL if state url is missing
     if (!state.googleDriveUrl || state.googleDriveUrl !== DEFAULT_GOOGLE_SCRIPT_URL) {
@@ -249,10 +283,11 @@
         const userName = state.currentUser ? state.currentUser.name : 'Nokib';
         state.logs.unshift({
             user: userName,
+            timestamp: Date.now(),
             time: new Date().toLocaleString(),
             action: action
         });
-        if(state.logs.length > 50) state.logs.pop();
+        if(state.logs.length > 200) state.logs.pop();
     }
 
     // -------------------------------------------------------------
@@ -376,6 +411,99 @@
       if (!selectedShareMember) return;
       const text = encodeURIComponent(getCredentialText());
       window.location.href = `sms:${selectedShareMember.phone}?body=${text}`;
+    }
+
+    // -------------------------------------------------------------
+    // USER 30-DAY ACTIVITY LOG MODAL
+    // -------------------------------------------------------------
+    function showUserActivity(userName) {
+      if (!userName) return;
+      const modal = document.getElementById('userActivityModal');
+      const title = document.getElementById('activityModalTitle');
+      const list = document.getElementById('activityModalList');
+      title.innerText = `Activity: ${userName}`;
+
+      const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+      const userLogs = state.logs.filter(l => {
+        const matchUser = (l.user || '').toLowerCase() === userName.toLowerCase();
+        const within30Days = l.timestamp ? (l.timestamp >= thirtyDaysAgo) : true;
+        return matchUser && within30Days;
+      });
+
+      if (userLogs.length === 0) {
+        list.innerHTML = `<div class="text-slate-400 text-center py-4 text-xs">No activity logged for ${userName} in the last 30 days.</div>`;
+      } else {
+        list.innerHTML = userLogs.map(l => `
+          <div class="p-2.5 border rounded-xl bg-slate-50">
+            <div class="font-medium text-slate-800 text-xs">${l.action}</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">${l.time}</div>
+          </div>
+        `).join('');
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeUserActivityModal() {
+      document.getElementById('userActivityModal').classList.add('hidden');
+    }
+
+    // -------------------------------------------------------------
+    // MONTHLY REPORT BACKUP & ARCHIVE
+    // -------------------------------------------------------------
+    function archiveCurrentMonth() {
+      const month = document.getElementById('monthSelect').value;
+      if (!confirm(`Save permanent backup snapshot for ${month}?`)) return;
+
+      let totalMeals = 0;
+      let totalCost = 0;
+      const memberStats = state.members.map(m => {
+        let mMeals = 0;
+        let mPaid = 0;
+        Object.keys(state.meals).forEach(d => {
+          if (d.startsWith(month)) mMeals += state.meals[d][m.id] || 0;
+        });
+        state.costs.forEach(c => {
+          if (c.date.startsWith(month) && c.memberId == m.id) mPaid += c.amount;
+        });
+        totalMeals += mMeals;
+        totalCost += mPaid;
+        return { id: m.id, name: m.name, phone: m.phone, mMeals, mPaid };
+      });
+
+      state.costs.forEach(c => {
+        if (c.date.startsWith(month) && c.memberId === 'mess_fund') totalCost += c.amount;
+      });
+
+      const rate = totalMeals > 0 ? totalCost / totalMeals : 0;
+
+      if (!state.monthlyBackups) state.monthlyBackups = {};
+      state.monthlyBackups[month] = {
+        month,
+        savedAt: new Date().toLocaleString(),
+        savedBy: state.currentUser ? state.currentUser.name : 'Admin',
+        totalCost,
+        totalMeals,
+        rate,
+        memberStats
+      };
+
+      addLog(`Created monthly report backup for ${month}`);
+      save();
+      alert(`Monthly backup for ${month} saved successfully!`);
+    }
+
+    function deleteMonthlyBackup(month) {
+      if (!confirm(`Delete backup for ${month}?`)) return;
+      delete state.monthlyBackups[month];
+      addLog(`Deleted backup for ${month}`);
+      save();
+    }
+
+    function loadArchivedMonth(month) {
+      document.getElementById('monthSelect').value = month;
+      render();
+      alert(`Loaded report for ${month}`);
     }
 
     // -------------------------------------------------------------
@@ -593,11 +721,11 @@
         const role = state.currentUser.role;
         const userBadge = document.getElementById('userBadge');
         if (role === 'admin') {
-          userBadge.innerText = "Admin Mode";
+          userBadge.innerHTML = `<span onclick="showUserActivity('Nokib')" class="cursor-pointer hover:underline" title="Click to view last 30 days activity">Admin: Nokib</span>`;
           userBadge.className = "text-[10px] text-blue-600 font-bold uppercase";
           document.getElementById('btn-admin').classList.remove('hidden');
         } else {
-          userBadge.innerText = `Member: ${state.currentUser.name}`;
+          userBadge.innerHTML = `<span onclick="showUserActivity('${state.currentUser.name}')" class="cursor-pointer hover:underline" title="Click to view last 30 days activity">Member: ${state.currentUser.name}</span>`;
           userBadge.className = "text-[10px] text-green-600 font-bold uppercase";
           document.getElementById('btn-admin').classList.add('hidden');
         }
@@ -684,7 +812,7 @@
         document.getElementById('memberManageList').innerHTML = state.members.map(m => `
             <div class="flex justify-between items-center py-2 border-b last:border-0">
                 <div>
-                  <span class="text-sm font-semibold">${m.name}</span>
+                  <span onclick="showUserActivity('${m.name}')" class="text-sm font-semibold cursor-pointer hover:text-blue-600 hover:underline" title="Click to view 30-day activity">${m.name}</span>
                   <span class="text-xs text-slate-400 block">${m.phone || ''}</span>
                 </div>
                 <div class="flex items-center gap-2">
@@ -758,10 +886,32 @@
             `;
           }).join('');
 
-        // Logs (Original design)
+        // Archived Reports List
+        const archivedEl = document.getElementById('archivedReportsList');
+        if (archivedEl) {
+          const backups = Object.values(state.monthlyBackups || {});
+          if (backups.length === 0) {
+            archivedEl.innerHTML = `<div class="text-slate-400 text-center py-2 text-[11px]">No monthly backups saved yet. Click 'Save Month Backup' above!</div>`;
+          } else {
+            archivedEl.innerHTML = backups.sort((a,b) => b.month.localeCompare(a.month)).map(b => `
+              <div class="p-2 border rounded-xl bg-slate-50 flex justify-between items-center text-xs">
+                <div>
+                  <div class="font-bold text-slate-800">${b.month} <span class="text-[10px] text-slate-400 font-normal">(${b.savedAt})</span></div>
+                  <div class="text-[10px] text-slate-500">Cost: ${b.totalCost.toFixed(2)} | Meals: ${b.totalMeals} | Rate: ${b.rate.toFixed(2)}</div>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <button onclick="loadArchivedMonth('${b.month}')" class="px-2 py-1 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg font-bold text-[10px] hover:bg-blue-100">View</button>
+                  ${role === 'admin' ? `<button onclick="deleteMonthlyBackup('${b.month}')" class="text-red-500 hover:text-red-700 text-[10px] px-1.5 py-1">Delete</button>` : ''}
+                </div>
+              </div>
+            `).join('');
+          }
+        }
+
+        // Logs (Clickable for 30-day activity)
         document.getElementById('auditLog').innerHTML = state.logs.map(l => `
             <div class="border-b pb-1">
-                <span class="text-blue-600 font-bold">${l.user}:</span> ${l.action} 
+                <span onclick="showUserActivity('${l.user}')" class="text-blue-600 font-bold hover:underline cursor-pointer" title="Click to view 30 days activity">${l.user}:</span> ${l.action} 
                 <span class="text-slate-400 block">${l.time}</span>
             </div>
         `).join('');
@@ -795,11 +945,24 @@
         navigator.clipboard.writeText(txt).then(() => alert("Summary copied!"));
     }
 
-    function resetAllData() {
-        if(confirm("Erase all data?")) {
-            localStorage.clear();
-            location.reload();
+    async function resetAllData() {
+        if(!confirm("Are you sure you want to erase ALL data (members, meals, expenses) from both local storage and Google Drive? This cannot be undone!")) return;
+
+        state.members = [];
+        state.meals = {};
+        state.costs = [];
+        state.logs = [{ user: 'Admin', time: new Date().toLocaleString(), action: 'Database cleared' }];
+
+        localStorage.removeItem('mt_pro_data');
+        localStorage.setItem('mt_pro_data', JSON.stringify(state));
+
+        // Push empty clean state to Google Drive
+        if (state.googleDriveUrl) {
+            await pushDriveBackground();
         }
+
+        alert("Database has been completely cleared!");
+        location.reload();
     }
 
     // PWA Service Worker Registration
