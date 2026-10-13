@@ -218,7 +218,7 @@
 
   <script>
     // Set your Google Apps Script Web App URL here ONCE, so no mobile device ever needs to type it again!
-    const DEFAULT_GOOGLE_SCRIPT_URL = "";
+    const DEFAULT_GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwijBGqt9P4hUjWcx_e-jhR0jK4V0l0VwAqeaRJGSmsB2Hh3V6R83CgQyxxg9A_olRj3A/exec";
 
     let state = JSON.parse(localStorage.getItem('mt_pro_data')) || {
         currentUser: null, // { role: 'admin'|'member', name: '...', phone: '...' }
@@ -231,7 +231,10 @@
     };
 
     if (!state.adminPin) state.adminPin = "@nokib";
-    if (!state.googleDriveUrl && DEFAULT_GOOGLE_SCRIPT_URL) state.googleDriveUrl = DEFAULT_GOOGLE_SCRIPT_URL;
+    // Always use the configured default URL if state url is missing
+    if (!state.googleDriveUrl || state.googleDriveUrl !== DEFAULT_GOOGLE_SCRIPT_URL) {
+      state.googleDriveUrl = DEFAULT_GOOGLE_SCRIPT_URL;
+    }
 
     let selectedShareMember = null;
 
@@ -494,9 +497,12 @@
       });
     }
 
-    async function syncGoogleDrive() {
-      const url = state.googleDriveUrl || document.getElementById('googleDriveUrlInput').value.trim();
-      if (!url) return alert("Please enter Google Apps Script URL first!");
+    async function syncGoogleDrive(silent = false) {
+      const url = state.googleDriveUrl || DEFAULT_GOOGLE_SCRIPT_URL;
+      if (!url) {
+        if (!silent) alert("Please enter Google Apps Script URL first!");
+        return;
+      }
 
       state.googleDriveUrl = url;
       document.getElementById('driveBadge').innerText = "Syncing...";
@@ -517,19 +523,19 @@
           document.getElementById('driveBadge').innerText = "Drive Synced";
           document.getElementById('driveBadge').className = "text-[10px] font-bold px-2 py-0.5 rounded bg-green-100 text-green-700";
           document.getElementById('driveStatusIndicator').innerText = "• Drive Synced";
-          alert("Synced with Google Drive successfully!");
+          if (!silent) alert("Synced with Google Drive successfully!");
         } else {
           await pushDriveBackground();
           document.getElementById('driveBadge').innerText = "Drive Synced";
           document.getElementById('driveBadge').className = "text-[10px] font-bold px-2 py-0.5 rounded bg-green-100 text-green-700";
           document.getElementById('driveStatusIndicator').innerText = "• Drive Synced";
-          alert("Initial database saved to Google Drive!");
+          if (!silent) alert("Initial database saved to Google Drive!");
         }
       } catch (err) {
         console.error("Drive sync error", err);
         document.getElementById('driveBadge').innerText = "Sync Error";
         document.getElementById('driveBadge').className = "text-[10px] font-bold px-2 py-0.5 rounded bg-red-100 text-red-700";
-        alert("Failed to connect to Google Drive.\n\nTwo things to check:\n1. In Google Apps Script -> Deploy -> Manage deployments -> edit:\n   Make sure 'Who has access' is set to 'Anyone' (NOT 'Only myself').\n2. Make sure the Web App URL ends in '/exec'.");
+        if (!silent) alert("Failed to connect to Google Drive.\n\nTwo things to check:\n1. In Google Apps Script -> Deploy -> Manage deployments -> edit:\n   Make sure 'Who has access' is set to 'Anyone' (NOT 'Only myself').\n2. Make sure the Web App URL ends in '/exec'.");
       }
     }
 
@@ -766,6 +772,7 @@
     document.getElementById('mealDate').addEventListener('change', render);
     
     render();
+    syncGoogleDrive(true); // Automatically connects and loads Google Drive DB on startup!
   </script>
 </body>
 </html>
