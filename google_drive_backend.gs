@@ -30,7 +30,7 @@ function getOrCreateDbFile() {
     settings: {
       appName: "Meal Tracker Pro",
       currency: "৳",
-      adminPin: "1234"
+      adminPin: "@nokib"
     },
     members: [],
     meals: {},

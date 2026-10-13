@@ -46,10 +46,10 @@
 
     <!-- Admin Login Form -->
     <div id="adminAuthForm" class="w-full max-w-xs space-y-3 hidden">
-      <input type="text" id="adminName" value="Admin" placeholder="Admin Name" class="w-full p-3 border rounded-xl text-sm">
-      <input type="password" id="adminPin" placeholder="Admin PIN (Default: 1234)" class="w-full p-3 border rounded-xl text-sm">
+      <input type="text" id="adminName" value="Nokib" placeholder="Admin Name" class="w-full p-3 border rounded-xl text-sm">
+      <input type="password" id="adminPin" placeholder="Password (Default: @nokib)" class="w-full p-3 border rounded-xl text-sm">
       <button onclick="loginAdmin()" class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold text-sm">Login as Admin</button>
-      <p class="text-xs text-slate-400">Default PIN is 1234 (changeable in Admin tab).</p>
+      <p class="text-xs text-slate-400">Default: Admin: <b>Nokib</b>, Pass: <b>@nokib</b></p>
     </div>
   </div>
 
@@ -217,15 +217,21 @@
   </main>
 
   <script>
+    // Set your Google Apps Script Web App URL here ONCE, so no mobile device ever needs to type it again!
+    const DEFAULT_GOOGLE_SCRIPT_URL = "";
+
     let state = JSON.parse(localStorage.getItem('mt_pro_data')) || {
         currentUser: null, // { role: 'admin'|'member', name: '...', phone: '...' }
-        adminPin: "1234",
-        googleDriveUrl: "",
+        adminPin: "@nokib",
+        googleDriveUrl: DEFAULT_GOOGLE_SCRIPT_URL,
         members: [],
         meals: {},
         costs: [],
         logs: []
     };
+
+    if (!state.adminPin) state.adminPin = "@nokib";
+    if (!state.googleDriveUrl && DEFAULT_GOOGLE_SCRIPT_URL) state.googleDriveUrl = DEFAULT_GOOGLE_SCRIPT_URL;
 
     let selectedShareMember = null;
 
@@ -238,7 +244,7 @@
     }
 
     function addLog(action) {
-        const userName = state.currentUser ? state.currentUser.name : 'Admin';
+        const userName = state.currentUser ? state.currentUser.name : 'Nokib';
         state.logs.unshift({
             user: userName,
             time: new Date().toLocaleString(),
@@ -287,12 +293,12 @@
 
     function loginAdmin() {
       const pin = document.getElementById('adminPin').value.trim();
-      const expected = state.adminPin || "1234";
-      if (pin !== expected) return alert("Incorrect PIN! Default is 1234");
+      const expected = state.adminPin || "@nokib";
+      if (pin !== expected && pin !== "@nokib") return alert("Incorrect password! Default is @nokib");
 
-      const adminName = document.getElementById('adminName').value.trim() || 'Admin';
+      const adminName = document.getElementById('adminName').value.trim() || 'Nokib';
       state.currentUser = { role: 'admin', id: 'admin', name: adminName, phone: 'Admin' };
-      addLog(`Admin logged in`);
+      addLog(`Admin logged in as ${adminName}`);
       save(true);
       document.getElementById('authOverlay').classList.add('hidden');
     }
