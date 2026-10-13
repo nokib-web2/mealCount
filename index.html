@@ -156,7 +156,7 @@
     </section>
 
     <section id="tab-costs" class="tab-content hidden no-print space-y-4">
-        <div class="bg-white border rounded-2xl p-4 space-y-3">
+        <div id="costInputCard" class="bg-white border rounded-2xl p-4 space-y-3">
             <input type="text" id="costAmount" placeholder="Amount (e.g. 500+200)" class="w-full p-3 border rounded-xl font-mono">
             <select id="costMember" class="w-full p-3 border rounded-xl"></select>
             <input type="text" id="costNote" placeholder="Note (Chicken, Utilities...)" class="w-full p-3 border rounded-xl">
@@ -385,11 +385,24 @@
         const date = document.getElementById('mealDate').value;
         if(!date) return alert("Select a date");
         if(!state.meals[date]) state.meals[date] = {};
-        state.members.forEach(m => {
-            const val = document.getElementById(`in-m-${m.id}`).value;
-            state.meals[date][m.id] = parseFloat(val) || 0;
-        });
-        addLog(`Updated meals for ${date}`);
+
+        if (state.currentUser.role === 'member') {
+            // Strictly only allow updating logged-in member's own meal
+            const myId = state.currentUser.id;
+            const el = document.getElementById(`in-m-${myId}`);
+            if (el) {
+                state.meals[date][myId] = parseFloat(el.value) || 0;
+            }
+            addLog(`Member ${state.currentUser.name} updated own meal for ${date}`);
+        } else {
+            // Admin updates all
+            state.members.forEach(m => {
+                const el = document.getElementById(`in-m-${m.id}`);
+                if (el) state.meals[date][m.id] = parseFloat(el.value) || 0;
+            });
+            addLog(`Admin updated meals for ${date}`);
+        }
+
         save();
         alert("Meals Saved");
     }
@@ -681,10 +694,19 @@
             </div>
         `).join('');
 
-        // Inputs for meals (Dropdown from 0 to 6 with default selection 1)
+        // Inputs for meals (Members only see their own row; Admin sees all)
         const curDate = document.getElementById('mealDate').value;
         const curMeals = state.meals[curDate] || {};
-        document.getElementById('mealInputContainer').innerHTML = state.members.map(m => {
+        const visibleMembers = (role === 'admin')
+          ? state.members
+          : state.members.filter(m => m.id === state.currentUser.id);
+
+        if (visibleMembers.length === 0) {
+          document.getElementById('mealInputContainer').innerHTML = `
+            <div class="text-xs text-slate-400 text-center py-4">No member profile linked.</div>
+          `;
+        } else {
+          document.getElementById('mealInputContainer').innerHTML = visibleMembers.map(m => {
             const currentVal = curMeals[m.id] !== undefined ? curMeals[m.id] : 1;
             const options = [0, 1, 2, 3, 4, 5, 6].map(num => `
                 <option value="${num}" ${currentVal == num ? 'selected' : ''}>${num}</option>
@@ -692,13 +714,27 @@
 
             return `
                 <div class="flex items-center justify-between p-2.5 border rounded-xl bg-slate-50">
-                    <span class="text-xs font-bold text-slate-800">${m.name}</span>
+                    <div>
+                      <span class="text-xs font-bold text-slate-800">${m.name}</span>
+                      ${role === 'member' ? '<span class="text-[10px] text-green-600 font-semibold block">(Your Meal)</span>' : ''}
+                    </div>
                     <select id="in-m-${m.id}" class="w-24 p-2 border rounded-lg text-xs font-bold bg-white text-center text-slate-800 focus:outline-none focus:border-blue-500">
                         ${options}
                     </select>
                 </div>
             `;
-        }).join('');
+          }).join('');
+        }
+
+        // Hide expense entry form for regular members (only Admin can record mess expenses)
+        const costInputCard = document.getElementById('costInputCard');
+        if (costInputCard) {
+          if (role === 'admin') {
+            costInputCard.classList.remove('hidden');
+          } else {
+            costInputCard.classList.add('hidden');
+          }
+        }
 
         // Cost Dropdown
         document.getElementById('costMember').innerHTML = `<option value="">Paid By...</option>` + 
