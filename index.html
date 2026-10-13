@@ -681,15 +681,24 @@
             </div>
         `).join('');
 
-        // Inputs for meals (Original design)
+        // Inputs for meals (Dropdown from 0 to 6 with default selection 1)
         const curDate = document.getElementById('mealDate').value;
         const curMeals = state.meals[curDate] || {};
-        document.getElementById('mealInputContainer').innerHTML = state.members.map(m => `
-            <div class="flex items-center justify-between p-2 border rounded-lg bg-slate-50">
-                <span class="text-xs font-bold">${m.name}</span>
-                <input type="number" id="in-m-${m.id}" step="0.5" value="${curMeals[m.id] !== undefined ? curMeals[m.id] : 0}" class="w-16 p-1 border rounded text-center text-xs font-bold bg-white">
-            </div>
-        `).join('');
+        document.getElementById('mealInputContainer').innerHTML = state.members.map(m => {
+            const currentVal = curMeals[m.id] !== undefined ? curMeals[m.id] : 1;
+            const options = [0, 1, 2, 3, 4, 5, 6].map(num => `
+                <option value="${num}" ${currentVal == num ? 'selected' : ''}>${num}</option>
+            `).join('');
+
+            return `
+                <div class="flex items-center justify-between p-2.5 border rounded-xl bg-slate-50">
+                    <span class="text-xs font-bold text-slate-800">${m.name}</span>
+                    <select id="in-m-${m.id}" class="w-24 p-2 border rounded-lg text-xs font-bold bg-white text-center text-slate-800 focus:outline-none focus:border-blue-500">
+                        ${options}
+                    </select>
+                </div>
+            `;
+        }).join('');
 
         // Cost Dropdown
         document.getElementById('costMember').innerHTML = `<option value="">Paid By...</option>` + 
