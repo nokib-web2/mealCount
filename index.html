@@ -46,10 +46,9 @@
 
     <!-- Admin Login Form -->
     <div id="adminAuthForm" class="w-full max-w-xs space-y-3 hidden">
-      <input type="text" id="adminName" value="Nokib" placeholder="Admin Name" class="w-full p-3 border rounded-xl text-sm">
-      <input type="password" id="adminPin" placeholder="Password (Default: @nokib)" class="w-full p-3 border rounded-xl text-sm">
+      <input type="text" id="adminName" placeholder="Admin Name" class="w-full p-3 border rounded-xl text-sm">
+      <input type="password" id="adminPin" placeholder="Password" class="w-full p-3 border rounded-xl text-sm">
       <button onclick="loginAdmin()" class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold text-sm">Login as Admin</button>
-      <p class="text-xs text-slate-400">Default: Admin: <b>Nokib</b>, Pass: <b>@nokib</b></p>
     </div>
   </div>
 
@@ -202,14 +201,14 @@
             </div>
         </div>
 
-        <!-- Admin PIN -->
-        <div class="bg-white border rounded-2xl p-4 space-y-2">
-            <h3 class="font-bold text-sm">Admin Security PIN</h3>
-            <div class="flex gap-2">
-              <input type="password" id="adminPinInput" placeholder="New PIN (Default: 1234)" class="flex-1 p-2 border rounded-lg text-xs font-mono">
-              <button onclick="saveAdminPin()" class="bg-slate-800 text-white px-4 rounded-lg text-xs font-bold">Save PIN</button>
+            <!-- Admin Password -->
+            <div class="bg-white border rounded-2xl p-4 space-y-2">
+                <h3 class="font-bold text-sm">Change Admin Password</h3>
+                <div class="flex gap-2">
+                  <input type="password" id="adminPinInput" placeholder="Enter new password" class="flex-1 p-2 border rounded-lg text-xs font-mono">
+                  <button onclick="saveAdminPin()" class="bg-slate-800 text-white px-4 rounded-lg text-xs font-bold">Save</button>
+                </div>
             </div>
-        </div>
 
         <button onclick="resetAllData()" class="w-full text-red-600 text-xs font-bold py-4">DANGER: RESET ALL DATA</button>
     </section>
@@ -297,7 +296,7 @@
     function loginAdmin() {
       const pin = document.getElementById('adminPin').value.trim();
       const expected = state.adminPin || "@nokib";
-      if (pin !== expected && pin !== "@nokib") return alert("Incorrect password! Default is @nokib");
+      if (pin !== expected && pin !== "@nokib") return alert("Incorrect password!");
 
       const adminName = document.getElementById('adminName').value.trim() || 'Nokib';
       state.currentUser = { role: 'admin', id: 'admin', name: adminName, phone: 'Admin' };
