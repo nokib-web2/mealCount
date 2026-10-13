@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Meal Tracker Pro</title>
+
+  <!-- PWA Meta Tags -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="MealTracker">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="favicon.png">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <style>
+    body { background-color: #FBFBFB; -webkit-tap-highlight-color: transparent; }
+    .tab-active { background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); color: #1E293B !important; }
+    @media print { .no-print { display: none !important; } .print-only { display: block !important; } }
+    .print-only { display: none; }
+  </style>
+</head>
+<body class="min-h-screen pb-24 font-sans text-slate-800">
+
+  <!-- AUTH / LOGIN OVERLAY -->
+  <div id="authOverlay" class="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center p-6 text-center">
+    <h1 class="text-2xl font-bold mb-1">Meal Tracker Pro</h1>
+    <p class="text-sm text-slate-500 mb-6">Login to view or manage meals</p>
+
+    <div class="w-full max-w-xs flex bg-slate-100 p-1 rounded-xl text-xs font-semibold text-slate-500 mb-4">
+      <button onclick="setAuthTab('member')" id="tabMemberBtn" class="flex-1 py-2 rounded-lg tab-active">Member Login</button>
+      <button onclick="setAuthTab('admin')" id="tabAdminBtn" class="flex-1 py-2 rounded-lg">Admin Login</button>
+    </div>
+
+    <!-- Member Login Form -->
+    <div id="memberAuthForm" class="w-full max-w-xs space-y-3">
+      <input type="text" id="loginName" placeholder="Full Name (saved by Admin)" class="w-full p-3 border rounded-xl text-sm">
+      <input type="tel" id="loginPhone" placeholder="Mobile Number" class="w-full p-3 border rounded-xl text-sm">
+      <button onclick="loginMember()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold text-sm">Login as Member</button>
+      <p class="text-xs text-slate-400">Ask admin to add you if you are not registered yet.</p>
+    </div>
+
+    <!-- Admin Login Form -->
+    <div id="adminAuthForm" class="w-full max-w-xs space-y-3 hidden">
+      <input type="text" id="adminName" value="Admin" placeholder="Admin Name" class="w-full p-3 border rounded-xl text-sm">
+      <input type="password" id="adminPin" placeholder="Admin PIN (Default: 1234)" class="w-full p-3 border rounded-xl text-sm">
+      <button onclick="loginAdmin()" class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold text-sm">Login as Admin</button>
+      <p class="text-xs text-slate-400">Default PIN is 1234 (changeable in Admin tab).</p>
+    </div>
+  </div>
+
+  <!-- SHARE CREDENTIAL MODAL -->
+  <div id="shareModal" class="fixed inset-0 z-[110] bg-black/40 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-3 shadow-xl">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="font-bold text-sm">Share Member Credential</h3>
+        <button onclick="closeShareModal()" class="text-slate-400 text-xl font-bold">&times;</button>
+      </div>
+      <div id="shareTextPreview" class="p-3 bg-slate-50 border rounded-xl text-xs font-mono text-slate-700 space-y-1"></div>
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button onclick="shareWhatsApp()" class="bg-green-600 text-white py-2.5 rounded-xl font-bold text-xs">WhatsApp</button>
+        <button onclick="copyShareCredential()" class="bg-blue-600 text-white py-2.5 rounded-xl font-bold text-xs">Copy Text</button>
+      </div>
+      <button onclick="shareSms()" class="w-full bg-slate-100 text-slate-700 py-2 rounded-xl font-bold text-xs">Share via SMS</button>
+    </div>
+  </div>
+
+  <!-- HEADER (Exact Original Layout) -->
+  <header class="no-print sticky top-0 z-30 bg-white/95 backdrop-blur border-b p-4">
+    <div class="max-w-xl mx-auto flex justify-between items-center">
+      <div>
+        <h1 class="text-lg font-bold text-slate-900">Meal Tracker Pro</h1>
+        <div class="flex items-center gap-2">
+          <div id="userBadge" class="text-[10px] text-blue-600 font-bold uppercase">Admin Mode</div>
+          <span id="driveStatusIndicator" class="text-[10px] text-slate-400 font-bold"></span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <input type="month" id="monthSelect" class="bg-slate-100 text-xs font-bold rounded-lg px-2 py-1 border">
+        <button onclick="logout()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-2.5 py-1 rounded-lg border font-semibold">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN (Exact Original Layout & Colors) -->
+  <main class="max-w-xl mx-auto p-4 space-y-4">
+    <!-- KPI Section (Original Orange, Blue, Green) -->
+    <section class="grid grid-cols-3 gap-2">
+        <div class="bg-orange-100 p-3 rounded-2xl border border-orange-200">
+            <span class="text-[10px] uppercase font-bold text-orange-700">Cost</span>
+            <div id="kpiTotalCost" class="font-mono font-bold text-lg">0</div>
+        </div>
+        <div class="bg-blue-100 p-3 rounded-2xl border border-blue-200">
+            <span class="text-[10px] uppercase font-bold text-blue-700">Meals</span>
+            <div id="kpiTotalMeals" class="font-mono font-bold text-lg">0</div>
+        </div>
+        <div class="bg-green-100 p-3 rounded-2xl border border-green-200">
+            <span class="text-[10px] uppercase font-bold text-green-700">Rate</span>
+            <div id="kpiMealRate" class="font-mono font-bold text-lg">0</div>
+        </div>
+    </section>
+
+    <!-- Member Personalized Status (shown only when a member logs in) -->
+    <div id="memberPersonalView" class="hidden bg-blue-50 border border-blue-200 p-4 rounded-2xl space-y-2">
+      <div class="flex justify-between items-center">
+        <div>
+          <div class="font-bold text-sm text-slate-900" id="myViewName">My Summary</div>
+          <div class="text-[10px] text-slate-500" id="myViewPhone"></div>
+        </div>
+        <div id="myViewBalance" class="text-xs font-bold px-2.5 py-1 rounded-lg">0</div>
+      </div>
+      <div class="grid grid-cols-3 gap-2 text-center text-xs pt-2 border-t border-blue-100">
+        <div><span class="text-[10px] text-slate-500 block">My Meals</span><b id="myViewMeals" class="font-mono">0</b></div>
+        <div><span class="text-[10px] text-slate-500 block">My Paid</span><b id="myViewPaid" class="font-mono">0</b></div>
+        <div><span class="text-[10px] text-slate-500 block">Meal Cost</span><b id="myViewCost" class="font-mono">0</b></div>
+      </div>
+    </div>
+
+    <!-- Navigation (Original buttons) -->
+    <nav class="no-print flex bg-slate-100 p-1 rounded-xl text-xs font-semibold text-slate-500">
+      <button onclick="showTab('summary')" id="btn-summary" class="flex-1 py-2 rounded-lg tab-active">Summary</button>
+      <button onclick="showTab('meals')" id="btn-meals" class="flex-1 py-2 rounded-lg">Meals</button>
+      <button onclick="showTab('costs')" id="btn-costs" class="flex-1 py-2 rounded-lg">Costs</button>
+      <button onclick="showTab('admin')" id="btn-admin" class="flex-1 py-2 rounded-lg">Admin</button>
+    </nav>
+
+    <!-- CONTENT TABS -->
+    <section id="tab-summary" class="tab-content space-y-4">
+      <div class="bg-white border rounded-2xl p-4 shadow-sm" id="printableArea">
+        <div class="print-only border-b pb-4 mb-4">
+            <h2 class="text-xl font-bold">Monthly Meal Statement</h2>
+            <p id="printDetails" class="text-sm text-slate-500"></p>
+        </div>
+        <div id="summaryList" class="space-y-2"></div>
+        <div class="mt-6 flex gap-2 no-print">
+            <button onclick="window.print()" class="flex-1 bg-slate-900 text-white py-3 rounded-xl text-xs font-bold">Print Receipt</button>
+            <button onclick="copyShareText()" class="flex-1 bg-green-600 text-white py-3 rounded-xl text-xs font-bold">Share Text</button>
+        </div>
+      </div>
+
+      <div class="no-print bg-white border rounded-2xl p-4">
+        <h3 class="text-xs font-bold uppercase mb-3">Audit Log (Change History)</h3>
+        <div id="auditLog" class="space-y-2 text-[11px] max-h-40 overflow-y-auto"></div>
+      </div>
+    </section>
+
+    <section id="tab-meals" class="tab-content hidden no-print space-y-4">
+        <div class="bg-white border rounded-2xl p-4 space-y-3">
+            <input type="date" id="mealDate" class="w-full p-2 border rounded-lg font-bold">
+            <div id="mealInputContainer" class="space-y-2"></div>
+            <button onclick="saveMeals()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">Save Daily Entry</button>
+        </div>
+    </section>
+
+    <section id="tab-costs" class="tab-content hidden no-print space-y-4">
+        <div class="bg-white border rounded-2xl p-4 space-y-3">
+            <input type="text" id="costAmount" placeholder="Amount (e.g. 500+200)" class="w-full p-3 border rounded-xl font-mono">
+            <select id="costMember" class="w-full p-3 border rounded-xl"></select>
+            <input type="text" id="costNote" placeholder="Note (Chicken, Utilities...)" class="w-full p-3 border rounded-xl">
+            <button onclick="saveCost()" class="w-full bg-orange-500 text-white py-3 rounded-xl font-bold">Save Expense</button>
+        </div>
+        <div class="bg-white border rounded-2xl p-4 space-y-2">
+            <h3 class="text-xs font-bold uppercase text-slate-500">Expenses for this Month</h3>
+            <div id="costHistoryList" class="space-y-2 max-h-48 overflow-y-auto text-xs"></div>
+        </div>
+    </section>
+
+    <section id="tab-admin" class="tab-content hidden no-print space-y-4">
+        <!-- Add Member with Name and Mobile -->
+        <div class="bg-white border rounded-2xl p-4 space-y-3">
+            <h3 class="font-bold mb-1">Add Member</h3>
+            <div class="space-y-2">
+                <input type="text" id="newMemberName" placeholder="Full Name" class="w-full p-2 border rounded-lg text-sm">
+                <input type="tel" id="newMemberPhone" placeholder="Mobile Number" class="w-full p-2 border rounded-lg text-sm">
+                <button onclick="addMember()" class="w-full bg-green-600 text-white py-2 rounded-lg font-bold text-xs">
+                  Add Member & Share Credential
+                </button>
+            </div>
+        </div>
+
+        <!-- Member Directory with Share Button -->
+        <div class="bg-white border rounded-2xl p-4 space-y-2">
+            <h3 class="font-bold text-sm mb-2">Member Directory</h3>
+            <div id="memberManageList" class="space-y-2"></div>
+        </div>
+
+        <!-- Google Drive Database -->
+        <div class="bg-white border rounded-2xl p-4 space-y-2">
+            <div class="flex justify-between items-center">
+              <h3 class="font-bold text-sm">Google Drive Database</h3>
+              <span id="driveBadge" class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600">Local Only</span>
+            </div>
+            <p class="text-xs text-slate-500">Store database in your personal Google Drive via Google Apps Script.</p>
+            <input type="url" id="googleDriveUrlInput" placeholder="Google Apps Script Web App URL" class="w-full p-2 border rounded-lg text-xs font-mono">
+            <div class="flex gap-2">
+              <button onclick="saveGoogleDriveUrl()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg text-xs font-bold">Save URL</button>
+              <button onclick="syncGoogleDrive()" class="flex-1 bg-slate-900 text-white py-2 rounded-lg text-xs font-bold">Sync Drive</button>
+            </div>
+        </div>
+
+        <!-- Admin PIN -->
+        <div class="bg-white border rounded-2xl p-4 space-y-2">
+            <h3 class="font-bold text-sm">Admin Security PIN</h3>
+            <div class="flex gap-2">
+              <input type="password" id="adminPinInput" placeholder="New PIN (Default: 1234)" class="flex-1 p-2 border rounded-lg text-xs font-mono">
+              <button onclick="saveAdminPin()" class="bg-slate-800 text-white px-4 rounded-lg text-xs font-bold">Save PIN</button>
+            </div>
+        </div>
+
+        <button onclick="resetAllData()" class="w-full text-red-600 text-xs font-bold py-4">DANGER: RESET ALL DATA</button>
+    </section>
+
+  </main>
+
+  <script>
+    let state = JSON.parse(localStorage.getItem('mt_pro_data')) || {
+        currentUser: null, // { role: 'admin'|'member', name: '...', phone: '...' }
+        adminPin: "1234",
+        googleDriveUrl: "",
+        members: [],
+        meals: {},
+        costs: [],
+        logs: []
+    };
+
+    let selectedShareMember = null;
+
+    function save(skipDrive = false) { 
+        localStorage.setItem('mt_pro_data', JSON.stringify(state));
+        render();
+        if (!skipDrive && state.googleDriveUrl) {
+          pushDriveBackground();
+        }
+    }
+
+    function addLog(action) {
+        const userName = state.currentUser ? state.currentUser.name : 'Admin';
+        state.logs.unshift({
+            user: userName,
+            time: new Date().toLocaleString(),
+            action: action
+        });
+        if(state.logs.length > 50) state.logs.pop();
+    }
+
+    // -------------------------------------------------------------
+    // AUTHENTICATION
+    // -------------------------------------------------------------
+    function setAuthTab(tab) {
+      if (tab === 'member') {
+        document.getElementById('tabMemberBtn').className = "flex-1 py-2 rounded-lg tab-active";
+        document.getElementById('tabAdminBtn').className = "flex-1 py-2 rounded-lg";
+        document.getElementById('memberAuthForm').classList.remove('hidden');
+        document.getElementById('adminAuthForm').classList.add('hidden');
+      } else {
+        document.getElementById('tabAdminBtn').className = "flex-1 py-2 rounded-lg tab-active";
+        document.getElementById('tabMemberBtn').className = "flex-1 py-2 rounded-lg";
+        document.getElementById('adminAuthForm').classList.remove('hidden');
+        document.getElementById('memberAuthForm').classList.add('hidden');
+      }
+    }
+
+    function loginMember() {
+      const name = document.getElementById('loginName').value.trim();
+      const phone = document.getElementById('loginPhone').value.trim();
+      if (!name || !phone) return alert("Please enter both Name and Mobile Number");
+
+      const cleanPhone = phone.replace(/[^0-9]/g, '');
+      const matched = state.members.find(m => {
+        const mPhone = (m.phone || '').replace(/[^0-9]/g, '');
+        return m.name.toLowerCase() === name.toLowerCase() && (mPhone.endsWith(cleanPhone) || cleanPhone.endsWith(mPhone));
+      });
+
+      if (!matched) {
+        return alert("Member not found! Ask admin to add your name & mobile number first.");
+      }
+
+      state.currentUser = { role: 'member', id: matched.id, name: matched.name, phone: matched.phone };
+      addLog(`Member ${matched.name} logged in`);
+      save(true);
+      document.getElementById('authOverlay').classList.add('hidden');
+    }
+
+    function loginAdmin() {
+      const pin = document.getElementById('adminPin').value.trim();
+      const expected = state.adminPin || "1234";
+      if (pin !== expected) return alert("Incorrect PIN! Default is 1234");
+
+      const adminName = document.getElementById('adminName').value.trim() || 'Admin';
+      state.currentUser = { role: 'admin', id: 'admin', name: adminName, phone: 'Admin' };
+      addLog(`Admin logged in`);
+      save(true);
+      document.getElementById('authOverlay').classList.add('hidden');
+    }
+
+    function logout() {
+      state.currentUser = null;
+      save(true);
+      document.getElementById('authOverlay').classList.remove('hidden');
+      setAuthTab('member');
+    }
+
+    // -------------------------------------------------------------
+    // MEMBER MANAGEMENT & CREDENTIAL SHARING
+    // -------------------------------------------------------------
+    function addMember() {
+        const name = document.getElementById('newMemberName').value.trim();
+        const phone = document.getElementById('newMemberPhone').value.trim();
+        if(!name) return alert("Enter member name");
+        if(!phone) return alert("Enter mobile number");
+
+        const member = { id: Date.now(), name, phone };
+        state.members.push(member);
+        addLog(`Added member: ${name} (${phone})`);
+        document.getElementById('newMemberName').value = '';
+        document.getElementById('newMemberPhone').value = '';
+        save();
+        openShareModal(member);
+    }
+
+    function removeMember(id) {
+        if(!confirm("Are you sure?")) return;
+        state.members = state.members.filter(m => m.id != id);
+        addLog(`Removed member`);
+        save();
+    }
+
+    function openShareModal(member) {
+      selectedShareMember = member;
+      const appUrl = window.location.href.split('#')[0];
+      document.getElementById('shareTextPreview').innerHTML = `
+        <div class="font-bold text-slate-800">🍽️ Meal Tracker Pro Login:</div>
+        <div><b>Name:</b> ${member.name}</div>
+        <div><b>Mobile:</b> ${member.phone}</div>
+        <div><b>App Link:</b> <span class="text-blue-600 break-all">${appUrl}</span></div>
+      `;
+      document.getElementById('shareModal').classList.remove('hidden');
+    }
+
+    function closeShareModal() {
+      document.getElementById('shareModal').classList.add('hidden');
+      selectedShareMember = null;
+    }
+
+    function getCredentialText() {
+      if (!selectedShareMember) return '';
+      const appUrl = window.location.href.split('#')[0];
+      return `🍽️ *Meal Tracker Pro Login*\n\nHello ${selectedShareMember.name},\nHere is your mess login credential:\n• Name: ${selectedShareMember.name}\n• Mobile: ${selectedShareMember.phone}\n• App: ${appUrl}\n\nLogin with your Name & Mobile to see your daily meals and balance!`;
+    }
+
+    function copyShareCredential() {
+      navigator.clipboard.writeText(getCredentialText()).then(() => alert("Credential copied to clipboard!"));
+    }
+
+    function shareWhatsApp() {
+      if (!selectedShareMember) return;
+      let clean = selectedShareMember.phone.replace(/[^0-9]/g, '');
+      if (clean.startsWith('01')) clean = '88' + clean;
+      const text = encodeURIComponent(getCredentialText());
+      window.open(`https://api.whatsapp.com/send?phone=${clean}&text=${text}`, '_blank');
+    }
+
+    function shareSms() {
+      if (!selectedShareMember) return;
+      const text = encodeURIComponent(getCredentialText());
+      window.location.href = `sms:${selectedShareMember.phone}?body=${text}`;
+    }
+
+    // -------------------------------------------------------------
+    // MEALS & COSTS
+    // -------------------------------------------------------------
+    function saveMeals() {
+        const date = document.getElementById('mealDate').value;
+        if(!date) return alert("Select a date");
+        if(!state.meals[date]) state.meals[date] = {};
+        state.members.forEach(m => {
+            const val = document.getElementById(`in-m-${m.id}`).value;
+            state.meals[date][m.id] = parseFloat(val) || 0;
+        });
+        addLog(`Updated meals for ${date}`);
+        save();
+        alert("Meals Saved");
+    }
+
+    function saveCost() {
+        const amtRaw = document.getElementById('costAmount').value;
+        const mid = document.getElementById('costMember').value;
+        const note = document.getElementById('costNote').value;
+        if (!amtRaw || !mid) return alert("Amount and Member required");
+
+        let amt = 0;
+        try {
+          amt = eval(amtRaw.replace(/[^-()\d/*+.]/g, ''));
+        } catch(e) {
+          return alert("Invalid amount calculation");
+        }
+        if(!amt) return alert("Invalid entry");
+        
+        state.costs.push({
+            id: Date.now(),
+            memberId: mid,
+            amount: amt,
+            note: note || 'Mess Expense',
+            date: new Date().toISOString().split('T')[0]
+        });
+
+        const payerName = mid === 'mess_fund' ? 'Common Fund' : (state.members.find(x=>x.id==mid)?.name || 'Member');
+        addLog(`Added cost: ${amt} by ${payerName}`);
+        save();
+        document.getElementById('costAmount').value = '';
+        document.getElementById('costNote').value = '';
+        alert("Cost Saved");
+    }
+
+    function deleteCost(id) {
+      if(!confirm("Delete this expense?")) return;
+      state.costs = state.costs.filter(c => c.id != id);
+      addLog("Deleted expense");
+      save();
+    }
+
+    function showTab(tab) {
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+        document.getElementById('tab-'+tab).classList.remove('hidden');
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('tab-active'));
+        document.getElementById('btn-'+tab).classList.add('tab-active');
+    }
+
+    // -------------------------------------------------------------
+    // GOOGLE DRIVE DATABASE (CORS & file:/// Immune Sync)
+    // -------------------------------------------------------------
+    function saveGoogleDriveUrl() {
+      const url = document.getElementById('googleDriveUrlInput').value.trim();
+      state.googleDriveUrl = url;
+      save(true);
+      alert("Google Drive Web App URL saved!");
+      if (url) syncGoogleDrive();
+    }
+
+    function saveAdminPin() {
+      const pin = document.getElementById('adminPinInput').value.trim();
+      if (!pin) return alert("Enter valid PIN");
+      state.adminPin = pin;
+      save(true);
+      alert("Admin PIN updated!");
+    }
+
+    function fetchDriveData(url) {
+      return new Promise((resolve, reject) => {
+        const sep = url.includes('?') ? '&' : '?';
+        const callbackName = 'gdrive_cb_' + Date.now();
+        const script = document.createElement('script');
+        script.src = `${url}${sep}action=read&callback=${callbackName}`;
+        
+        const timer = setTimeout(() => {
+          cleanup();
+          // Fallback to fetch
+          fetch(`${url}${sep}action=read`)
+            .then(r => r.json())
+            .then(data => resolve(data))
+            .catch(err => reject(new Error("Timeout/Blocked. Make sure 'Who has access' is set to 'Anyone' and URL ends in '/exec'")));
+        }, 8000);
+
+        function cleanup() {
+          clearTimeout(timer);
+          delete window[callbackName];
+          if (script.parentNode) script.parentNode.removeChild(script);
+        }
+
+        window[callbackName] = function(response) {
+          cleanup();
+          resolve(response);
+        };
+
+        script.onerror = function() {
+          cleanup();
+          fetch(`${url}${sep}action=read`)
+            .then(r => r.json())
+            .then(data => resolve(data))
+            .catch(err => reject(err));
+        };
+
+        document.head.appendChild(script);
+      });
+    }
+
+    async function syncGoogleDrive() {
+      const url = state.googleDriveUrl || document.getElementById('googleDriveUrlInput').value.trim();
+      if (!url) return alert("Please enter Google Apps Script URL first!");
+
+      state.googleDriveUrl = url;
+      document.getElementById('driveBadge').innerText = "Syncing...";
+      document.getElementById('driveBadge').className = "text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-700";
+
+      try {
+        const json = await fetchDriveData(url);
+
+        if (json && json.status === 'success' && json.data) {
+          const d = json.data;
+          if (d.members && Array.isArray(d.members)) state.members = d.members;
+          if (d.meals) state.meals = { ...state.meals, ...d.meals };
+          if (d.costs && Array.isArray(d.costs)) state.costs = d.costs;
+          if (d.logs && Array.isArray(d.logs)) state.logs = d.logs;
+          if (d.settings?.adminPin) state.adminPin = d.settings.adminPin;
+
+          save(true);
+          document.getElementById('driveBadge').innerText = "Drive Synced";
+          document.getElementById('driveBadge').className = "text-[10px] font-bold px-2 py-0.5 rounded bg-green-100 text-green-700";
+          document.getElementById('driveStatusIndicator').innerText = "• Drive Synced";
+          alert("Synced with Google Drive successfully!");
+        } else {
+          await pushDriveBackground();
+          document.getElementById('driveBadge').innerText = "Drive Synced";
+          document.getElementById('driveBadge').className = "text-[10px] font-bold px-2 py-0.5 rounded bg-green-100 text-green-700";
+          document.getElementById('driveStatusIndicator').innerText = "• Drive Synced";
+          alert("Initial database saved to Google Drive!");
+        }
+      } catch (err) {
+        console.error("Drive sync error", err);
+        document.getElementById('driveBadge').innerText = "Sync Error";
+        document.getElementById('driveBadge').className = "text-[10px] font-bold px-2 py-0.5 rounded bg-red-100 text-red-700";
+        alert("Failed to connect to Google Drive.\n\nTwo things to check:\n1. In Google Apps Script -> Deploy -> Manage deployments -> edit:\n   Make sure 'Who has access' is set to 'Anyone' (NOT 'Only myself').\n2. Make sure the Web App URL ends in '/exec'.");
+      }
+    }
+
+    async function pushDriveBackground() {
+      const url = state.googleDriveUrl;
+      if (!url) return;
+      try {
+        const payload = JSON.stringify({
+          members: state.members,
+          meals: state.meals,
+          costs: state.costs,
+          logs: state.logs,
+          settings: { adminPin: state.adminPin }
+        });
+
+        // Use text/plain and no-cors to guarantee delivery without CORS preflight blocks
+        await fetch(url, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: payload
+        });
+
+        document.getElementById('driveBadge').innerText = "Drive Synced";
+        document.getElementById('driveBadge').className = "text-[10px] font-bold px-2 py-0.5 rounded bg-green-100 text-green-700";
+        document.getElementById('driveStatusIndicator').innerText = "• Drive Synced";
+      } catch (e) {
+        console.log("Background push error", e);
+      }
+    }
+
+    // -------------------------------------------------------------
+    // RENDER UI
+    // -------------------------------------------------------------
+    function render() {
+        if(!state.currentUser) {
+            document.getElementById('authOverlay').classList.remove('hidden');
+            return;
+        } else {
+            document.getElementById('authOverlay').classList.add('hidden');
+        }
+
+        const role = state.currentUser.role;
+        const userBadge = document.getElementById('userBadge');
+        if (role === 'admin') {
+          userBadge.innerText = "Admin Mode";
+          userBadge.className = "text-[10px] text-blue-600 font-bold uppercase";
+          document.getElementById('btn-admin').classList.remove('hidden');
+        } else {
+          userBadge.innerText = `Member: ${state.currentUser.name}`;
+          userBadge.className = "text-[10px] text-green-600 font-bold uppercase";
+          document.getElementById('btn-admin').classList.add('hidden');
+        }
+
+        const month = document.getElementById('monthSelect').value;
+        let totalMeals = 0;
+        let totalCost = 0;
+        
+        // Calculations
+        const memberStats = state.members.map(m => {
+            let mMeals = 0;
+            let mPaid = 0;
+            Object.keys(state.meals).forEach(d => {
+                if(d.startsWith(month)) mMeals += state.meals[d][m.id] || 0;
+            });
+            state.costs.forEach(c => {
+                if(c.date.startsWith(month) && c.memberId == m.id) mPaid += c.amount;
+            });
+            totalMeals += mMeals;
+            totalCost += mPaid;
+            return { ...m, mMeals, mPaid };
+        });
+
+        // Mess fund costs
+        state.costs.forEach(c => {
+          if (c.date.startsWith(month) && c.memberId === 'mess_fund') {
+            totalCost += c.amount;
+          }
+        });
+
+        const rate = totalMeals > 0 ? totalCost / totalMeals : 0;
+        
+        document.getElementById('kpiTotalCost').innerText = totalCost.toFixed(2);
+        document.getElementById('kpiTotalMeals').innerText = totalMeals;
+        document.getElementById('kpiMealRate').innerText = rate.toFixed(2);
+        document.getElementById('printDetails').innerText = `Period: ${month} | Generated by: ${state.currentUser.name} (${state.currentUser.phone || ''})`;
+
+        // Member personal card
+        const personalView = document.getElementById('memberPersonalView');
+        if (role === 'member') {
+          const myStat = memberStats.find(s => s.id === state.currentUser.id);
+          if (myStat) {
+            personalView.classList.remove('hidden');
+            document.getElementById('myViewName').innerText = myStat.name;
+            document.getElementById('myViewPhone').innerText = myStat.phone || '';
+            document.getElementById('myViewMeals').innerText = myStat.mMeals;
+            document.getElementById('myViewPaid').innerText = myStat.mPaid.toFixed(2);
+            const myCost = myStat.mMeals * rate;
+            document.getElementById('myViewCost').innerText = myCost.toFixed(2);
+            const myBalance = myStat.mPaid - myCost;
+            const balEl = document.getElementById('myViewBalance');
+            if (myBalance >= 0) {
+              balEl.className = "text-xs font-bold px-2.5 py-1 rounded-lg bg-green-100 text-green-700";
+              balEl.innerText = `Collect: ${myBalance.toFixed(2)}`;
+            } else {
+              balEl.className = "text-xs font-bold px-2.5 py-1 rounded-lg bg-red-100 text-red-700";
+              balEl.innerText = `Due: ${Math.abs(myBalance).toFixed(2)}`;
+            }
+          }
+        } else {
+          personalView.classList.add('hidden');
+        }
+
+        // Summary List (Original design)
+        document.getElementById('summaryList').innerHTML = memberStats.map(m => {
+            const expense = m.mMeals * rate;
+            const balance = m.mPaid - expense;
+            return `
+                <div class="p-3 border rounded-xl bg-slate-50 flex justify-between items-center">
+                    <div>
+                        <div class="font-bold text-sm">${m.name} <span class="text-[10px] text-slate-400 font-normal">${m.phone || ''}</span></div>
+                        <div class="text-[10px] text-slate-500">Meals: ${m.mMeals} | Paid: ${m.mPaid.toFixed(2)}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-xs font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}">
+                            ${balance >= 0 ? 'Collect' : 'Due'}: ${Math.abs(balance).toFixed(2)}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Admin List with Share Button
+        document.getElementById('memberManageList').innerHTML = state.members.map(m => `
+            <div class="flex justify-between items-center py-2 border-b last:border-0">
+                <div>
+                  <span class="text-sm font-semibold">${m.name}</span>
+                  <span class="text-xs text-slate-400 block">${m.phone || ''}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button onclick='openShareModal(${JSON.stringify(m)})' class="text-xs bg-blue-50 text-blue-600 border border-blue-200 px-2 py-1 rounded-lg font-bold">Share</button>
+                  <button onclick="removeMember(${m.id})" class="text-red-500 text-xs">Remove</button>
+                </div>
+            </div>
+        `).join('');
+
+        // Inputs for meals (Original design)
+        const curDate = document.getElementById('mealDate').value;
+        const curMeals = state.meals[curDate] || {};
+        document.getElementById('mealInputContainer').innerHTML = state.members.map(m => `
+            <div class="flex items-center justify-between p-2 border rounded-lg bg-slate-50">
+                <span class="text-xs font-bold">${m.name}</span>
+                <input type="number" id="in-m-${m.id}" step="0.5" value="${curMeals[m.id] !== undefined ? curMeals[m.id] : 0}" class="w-16 p-1 border rounded text-center text-xs font-bold bg-white">
+            </div>
+        `).join('');
+
+        // Cost Dropdown
+        document.getElementById('costMember').innerHTML = `<option value="">Paid By...</option>` + 
+            `<option value="mess_fund">🏦 Mess Common Fund</option>` +
+            state.members.map(m => `<option value="${m.id}">${m.name} (${m.phone || ''})</option>`).join('');
+
+        // Cost list
+        const monthCosts = state.costs.filter(c => c.date.startsWith(month));
+        document.getElementById('costHistoryList').innerHTML = monthCosts.length === 0 ?
+          `<div class="text-slate-400 text-center py-2">No expenses for this month.</div>` :
+          monthCosts.map(c => {
+            const payer = c.memberId === 'mess_fund' ? 'Common Fund' : (state.members.find(x=>x.id==c.memberId)?.name || 'Member');
+            return `
+              <div class="p-2 border rounded-xl bg-slate-50 flex justify-between items-center">
+                <div>
+                  <b>${c.amount.toFixed(2)}</b> by ${payer}
+                  <span class="text-[10px] text-slate-400 block">${c.note} &bull; ${c.date}</span>
+                </div>
+                ${role === 'admin' ? `<button onclick="deleteCost(${c.id})" class="text-red-500 text-xs">Delete</button>` : ''}
+              </div>
+            `;
+          }).join('');
+
+        // Logs (Original design)
+        document.getElementById('auditLog').innerHTML = state.logs.map(l => `
+            <div class="border-b pb-1">
+                <span class="text-blue-600 font-bold">${l.user}:</span> ${l.action} 
+                <span class="text-slate-400 block">${l.time}</span>
+            </div>
+        `).join('');
+
+        document.getElementById('googleDriveUrlInput').value = state.googleDriveUrl || '';
+    }
+
+    function copyShareText() {
+        const month = document.getElementById('monthSelect').value;
+        const totalCost = document.getElementById('kpiTotalCost').innerText;
+        const totalMeals = document.getElementById('kpiTotalMeals').innerText;
+        const rate = document.getElementById('kpiMealRate').innerText;
+
+        let txt = `📋 *Meal Statement (${month})*\n`;
+        txt += `Total Cost: ${totalCost} | Meals: ${totalMeals} | Rate: ${rate}\n\n`;
+
+        state.members.forEach(m => {
+            let mMeals = 0;
+            let mPaid = 0;
+            Object.keys(state.meals).forEach(d => {
+                if(d.startsWith(month)) mMeals += state.meals[d][m.id] || 0;
+            });
+            state.costs.forEach(c => {
+                if(c.date.startsWith(month) && c.memberId == m.id) mPaid += c.amount;
+            });
+            const expense = mMeals * parseFloat(rate);
+            const balance = mPaid - expense;
+            txt += `• ${m.name}: Meals ${mMeals}, Paid ${mPaid.toFixed(2)}, ${balance >= 0 ? 'Collect' : 'Due'} ${Math.abs(balance).toFixed(2)}\n`;
+        });
+
+        navigator.clipboard.writeText(txt).then(() => alert("Summary copied!"));
+    }
+
+    function resetAllData() {
+        if(confirm("Erase all data?")) {
+            localStorage.clear();
+            location.reload();
+        }
+    }
+
+    // PWA Service Worker Registration
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW Error', err));
+      });
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('monthSelect').value = today.substring(0,7);
+    document.getElementById('mealDate').value = today;
+    document.getElementById('monthSelect').addEventListener('change', render);
+    document.getElementById('mealDate').addEventListener('change', render);
+    
+    render();
+  </script>
+</body>
+</html>
