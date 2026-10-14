@@ -16,9 +16,44 @@
   <link rel="icon" type="image/png" href="favicon.png">
 
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Outfit', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            heading: ['Poppins', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    };
+  </script>
   <style>
-    body { background-color: #FBFBFB; -webkit-tap-highlight-color: transparent; }
+    * {
+      font-family: 'Outfit', sans-serif;
+    }
+    body {
+      font-family: 'Outfit', sans-serif;
+      background-color: #FBFBFB;
+      -webkit-tap-highlight-color: transparent;
+    }
+    h1, h2, h3, h4, h5, h6,
+    .font-heading,
+    .heading-font,
+    th {
+      font-family: 'Poppins', sans-serif !important;
+      letter-spacing: -0.01em;
+    }
+    input, button, select, textarea, label {
+      font-family: 'Outfit', sans-serif;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace !important;
+    }
     .tab-active { background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); color: #1E293B !important; }
     @media print { .no-print { display: none !important; } .print-only { display: block !important; } }
     .print-only { display: none; }
@@ -937,11 +972,11 @@
 
       // Header Text
       ctx.fillStyle = '#38BDF8';
-      ctx.font = 'bold 14px sans-serif';
+      ctx.font = 'bold 14px "Poppins", sans-serif';
       ctx.fillText('MEAL TRACKER PRO', 32, 42);
 
       ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 20px sans-serif';
+      ctx.font = 'bold 20px "Poppins", sans-serif';
       ctx.fillText('MONTHLY BILL STATEMENT', 32, 72);
 
       // Month Pill on top right
@@ -949,7 +984,7 @@
       drawCanvasRoundRect(ctx, canvas.width - 200, 32, 170, 38, 10);
       ctx.fill();
       ctx.fillStyle = '#38BDF8';
-      ctx.font = 'bold 13px sans-serif';
+      ctx.font = 'bold 13px "Poppins", sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(d.monthFormatted.toUpperCase(), canvas.width - 115, 56);
       ctx.textAlign = 'left';
@@ -964,24 +999,24 @@
 
       // Member Name
       ctx.fillStyle = '#64748B';
-      ctx.font = 'bold 10px sans-serif';
+      ctx.font = 'bold 10px "Outfit", sans-serif';
       ctx.fillText('MEMBER NAME', 42, 142);
       ctx.fillStyle = '#0F172A';
-      ctx.font = 'bold 18px sans-serif';
+      ctx.font = 'bold 18px "Poppins", sans-serif';
       ctx.fillText(d.member.name, 42, 168);
       if (d.member.phone) {
         ctx.fillStyle = '#64748B';
-        ctx.font = '12px sans-serif';
+        ctx.font = '12px "Outfit", sans-serif';
         ctx.fillText('(' + d.member.phone + ')', 42 + ctx.measureText(d.member.name).width + 8, 168);
       }
 
       // Date on right
       ctx.fillStyle = '#64748B';
-      ctx.font = 'bold 10px sans-serif';
+      ctx.font = 'bold 10px "Outfit", sans-serif';
       ctx.textAlign = 'right';
       ctx.fillText('STATEMENT DATE', canvas.width - 45, 142);
       ctx.fillStyle = '#334155';
-      ctx.font = 'bold 13px sans-serif';
+      ctx.font = 'bold 13px "Poppins", sans-serif';
       ctx.fillText(d.dateStr, canvas.width - 45, 168);
       ctx.textAlign = 'left';
 
@@ -1015,11 +1050,11 @@
           ctx.stroke();
         }
         ctx.fillStyle = '#334155';
-        ctx.font = '13px sans-serif';
+        ctx.font = '13px "Outfit", sans-serif';
         ctx.fillText(r.label, 42, ry + 36);
 
         ctx.fillStyle = '#0F172A';
-        ctx.font = 'bold 15px sans-serif';
+        ctx.font = 'bold 15px "Poppins", sans-serif';
         ctx.textAlign = 'right';
         ctx.fillText(r.value, canvas.width - 45, ry + 36);
         ctx.textAlign = 'left';
@@ -1038,11 +1073,11 @@
       ctx.stroke();
 
       ctx.fillStyle = isRefund ? '#065F46' : '#991B1B';
-      ctx.font = 'bold 12px sans-serif';
+      ctx.font = 'bold 12px "Poppins", sans-serif';
       ctx.fillText(isRefund ? 'NET BALANCE: REFUND / COLLECT (টাকা ফেরত পাবে)' : 'NET BALANCE: PAYABLE / DUE (বকেয়া পরিশোধ করতে হবে)', 42, balY + 34);
 
       ctx.fillStyle = isRefund ? '#047857' : '#DC2626';
-      ctx.font = 'bold 34px sans-serif';
+      ctx.font = 'bold 34px "Poppins", sans-serif';
       ctx.fillText('Tk. ' + Math.abs(d.balance).toFixed(2), 42, balY + 82);
 
       // Mess Overview Summary Bar (y: 605)
@@ -1051,10 +1086,10 @@
       ctx.fill();
 
       ctx.fillStyle = '#475569';
-      ctx.font = 'bold 11px sans-serif';
+      ctx.font = 'bold 11px "Poppins", sans-serif';
       ctx.fillText('MESS SUMMARY STATS', 42, 630);
       ctx.fillStyle = '#334155';
-      ctx.font = '12px sans-serif';
+      ctx.font = '12px "Outfit", sans-serif';
       ctx.fillText(`Total Mess Bazar: Tk. ${d.totalCost.toFixed(2)}  •  Total Meals: ${d.totalMeals}  •  Rate: Tk. ${d.rate.toFixed(2)}`, 42, 655);
 
       // Footer (y: 700 to 820)
@@ -1065,10 +1100,10 @@
       ctx.stroke();
 
       ctx.fillStyle = '#64748B';
-      ctx.font = 'bold 12px sans-serif';
+      ctx.font = 'bold 12px "Poppins", sans-serif';
       ctx.fillText('Meal Tracker Pro', 42, 735);
       ctx.fillStyle = '#94A3B8';
-      ctx.font = '11px sans-serif';
+      ctx.font = '11px "Outfit", sans-serif';
       ctx.fillText('Digital Mess Management System • System Verified Statement', 42, 755);
       ctx.fillText(`Generated on ${new Date().toLocaleString()}`, 42, 775);
 
