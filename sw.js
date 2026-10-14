@@ -1,5 +1,5 @@
 // Service Worker for Meal Tracker Pro PWA
-const CACHE_NAME = 'mealtracker-v8';
+const CACHE_NAME = 'mealtracker-v15';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

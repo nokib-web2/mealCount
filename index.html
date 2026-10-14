@@ -68,6 +68,34 @@
     </div>
   </div>
 
+  <!-- EDIT MEMBER CREDENTIAL MODAL -->
+  <div id="editMemberModal" class="fixed inset-0 z-[115] bg-black/40 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl">
+      <div class="flex justify-between items-center border-b pb-2">
+        <div>
+          <h3 class="font-bold text-sm text-slate-900">Update Login Credential</h3>
+          <p class="text-[10px] text-slate-400">Edit member's login name and mobile number</p>
+        </div>
+        <button onclick="closeEditMemberModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+      </div>
+      <input type="hidden" id="editMemberId">
+      <div class="space-y-3">
+        <div>
+          <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">Full Name (Login Name)</label>
+          <input type="text" id="editMemberName" placeholder="Full Name" class="w-full p-2.5 border rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">Mobile Number (Login Mobile)</label>
+          <input type="tel" id="editMemberPhone" placeholder="Mobile Number" class="w-full p-2.5 border rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+        </div>
+      </div>
+      <div class="flex gap-2 pt-1">
+        <button onclick="saveEditMember()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold text-xs transition shadow-sm">Save & Update</button>
+        <button onclick="closeEditMemberModal()" class="px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl font-bold text-xs transition">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- USER ACTIVITY MODAL (Last 30 Days) -->
   <div id="userActivityModal" class="fixed inset-0 z-[120] bg-black/40 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-3 shadow-xl">
@@ -83,19 +111,39 @@
     </div>
   </div>
 
-  <!-- HEADER (Exact Original Layout) -->
-  <header class="no-print sticky top-0 z-30 bg-white/95 backdrop-blur border-b p-4">
-    <div class="max-w-xl mx-auto flex justify-between items-center">
-      <div>
-        <h1 class="text-lg font-bold text-slate-900">Meal Tracker Pro</h1>
-        <div class="flex items-center gap-2">
-          <div id="userBadge" class="text-[10px] text-blue-600 font-bold uppercase">Admin Mode</div>
-          <span id="driveStatusIndicator" class="text-[10px] text-slate-400 font-bold"></span>
-        </div>
+  <!-- HEADER -->
+  <header class="no-print sticky top-0 z-30 bg-white/95 backdrop-blur border-b px-3 sm:px-4 py-2.5 sm:py-3 shadow-xs">
+    <div class="max-w-xl mx-auto flex justify-between items-center gap-2">
+      <!-- App Brand Logo & User Mode -->
+      <div class="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
+        <h1 class="sr-only">Meal Tracker Pro</h1>
+        <img src="icon-192.png" alt="Meal Tracker" class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl shadow-xs border border-slate-200/70 object-contain shrink-0">
+        <div id="userBadge" class="text-[11px] sm:text-xs text-blue-600 font-bold uppercase truncate">Admin Mode</div>
       </div>
-      <div class="flex items-center gap-2">
-        <input type="month" id="monthSelect" class="bg-slate-100 text-xs font-bold rounded-lg px-2 py-1 border">
-        <button onclick="logout()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-2.5 py-1 rounded-lg border font-semibold">Logout</button>
+
+      <!-- Right Controls: Date Badge, Month Select Icon, Logout Icon -->
+      <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <!-- Date Badge (Click to jump to today's meals) -->
+        <button type="button" onclick="onHeaderDateClick()" class="inline-flex items-center gap-1 bg-slate-100 hover:bg-blue-50 hover:border-blue-300 text-slate-700 hover:text-blue-700 px-2 sm:px-2.5 py-1.5 rounded-xl border border-slate-200 transition text-[11px] sm:text-xs font-semibold shadow-xs" title="Today's Date (Click to view today's meals)">
+          <span>📅</span>
+          <span id="headerDateTextDesktop" class="hidden sm:inline font-bold text-slate-800"></span>
+          <span id="headerDateTextMobile" class="sm:hidden font-bold text-slate-800"></span>
+        </button>
+
+        <!-- Month Select Icon Button -->
+        <label id="monthSelectBtn" class="relative inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 border border-slate-200 transition cursor-pointer shadow-xs shrink-0" title="Select Month" onclick="try{this.querySelector('input')?.showPicker?.();}catch(e){}">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 sm:w-4.5 sm:h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <input type="month" id="monthSelect" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
+        </label>
+
+        <!-- Logout Icon Button -->
+        <button type="button" onclick="logout()" class="inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 border border-slate-200 hover:border-red-200 transition shadow-xs shrink-0" title="Logout">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 sm:w-4.5 sm:h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+        </button>
       </div>
     </div>
   </header>
@@ -180,23 +228,67 @@
     </section>
 
     <section id="tab-meals" class="tab-content hidden no-print space-y-4">
-        <div class="bg-white border rounded-2xl p-4 space-y-3">
-            <input type="date" id="mealDate" class="w-full p-2 border rounded-lg font-bold">
+        <div class="bg-white border rounded-2xl p-4 space-y-3 shadow-sm" id="mealEntryCard">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h3 class="text-xs font-bold uppercase text-slate-700" id="mealEntryCardTitle">Daily Meal Entry</h3>
+                    <p class="text-[10px] text-slate-400">Select date and update meal counts</p>
+                </div>
+                <button type="button" onclick="setMealDateToday()" class="text-xs text-blue-600 font-semibold hover:underline">Today</button>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">Date</label>
+                <input type="date" id="mealDate" class="w-full p-2.5 border rounded-xl font-bold text-sm bg-white text-slate-800">
+            </div>
             <div id="mealInputContainer" class="space-y-2"></div>
-            <button onclick="saveMeals()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">Save Daily Entry</button>
+            <button id="saveMealBtn" onclick="saveMeals()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold text-sm transition shadow-sm">Save Meal Entry</button>
+        </div>
+
+        <!-- Monthly Meal History with Edit Option -->
+        <div class="bg-white border rounded-2xl p-4 space-y-3 shadow-sm">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h3 class="text-xs font-bold uppercase text-slate-700">Meal History (This Month)</h3>
+                    <p class="text-[10px] text-slate-400">Click Edit on any date to adjust past meals</p>
+                </div>
+                <span id="mealHistoryDaysBadge" class="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-lg"></span>
+            </div>
+            <div id="mealHistoryList" class="space-y-2 max-h-72 overflow-y-auto text-xs"></div>
         </div>
     </section>
 
     <section id="tab-costs" class="tab-content hidden no-print space-y-4">
-        <div id="costInputCard" class="bg-white border rounded-2xl p-4 space-y-3">
-            <input type="text" id="costAmount" placeholder="Amount (e.g. 500+200)" class="w-full p-3 border rounded-xl font-mono">
-            <select id="costMember" class="w-full p-3 border rounded-xl"></select>
-            <input type="text" id="costNote" placeholder="Note (Chicken, Utilities...)" class="w-full p-3 border rounded-xl">
-            <button onclick="saveCost()" class="w-full bg-orange-500 text-white py-3 rounded-xl font-bold">Save Expense</button>
+        <div id="costInputCard" class="bg-white border rounded-2xl p-4 space-y-3 shadow-sm">
+            <div class="flex justify-between items-center">
+                <h3 id="costFormTitle" class="text-xs font-bold uppercase text-slate-700">Add Expense / Bazar Cost</h3>
+                <button id="cancelCostEditBtn" type="button" onclick="cancelCostEdit()" class="hidden text-xs text-red-500 font-semibold hover:underline">Cancel Edit</button>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">Expense Date</label>
+                    <input type="date" id="costDate" class="w-full p-2.5 border rounded-xl text-xs font-bold bg-white text-slate-800">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">Paid By</label>
+                    <select id="costMember" class="w-full p-2.5 border rounded-xl text-xs font-semibold bg-white text-slate-800"></select>
+                </div>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">Amount (Supports calculations e.g. 500+250)</label>
+                <input type="text" id="costAmount" placeholder="Amount (e.g. 500+200)" class="w-full p-3 border rounded-xl font-mono text-sm">
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">Note / Description</label>
+                <input type="text" id="costNote" placeholder="Note (Chicken, Vegetables, Fish...)" class="w-full p-3 border rounded-xl text-sm">
+            </div>
+            <button id="saveCostBtn" onclick="saveCost()" class="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-bold text-sm transition shadow-sm">Save Expense</button>
         </div>
-        <div class="bg-white border rounded-2xl p-4 space-y-2">
-            <h3 class="text-xs font-bold uppercase text-slate-500">Expenses for this Month</h3>
-            <div id="costHistoryList" class="space-y-2 max-h-48 overflow-y-auto text-xs"></div>
+        <div class="bg-white border rounded-2xl p-4 space-y-2 shadow-sm">
+            <div class="flex justify-between items-center">
+                <h3 class="text-xs font-bold uppercase text-slate-500">Expenses for this Month</h3>
+                <span id="costCountBadge" class="text-[10px] font-bold text-slate-400"></span>
+            </div>
+            <div id="costHistoryList" class="space-y-2 max-h-60 overflow-y-auto text-xs"></div>
         </div>
     </section>
 
@@ -215,8 +307,30 @@
 
         <!-- Member Directory with Share Button -->
         <div class="bg-white border rounded-2xl p-4 space-y-2">
-            <h3 class="font-bold text-sm mb-2">Member Directory</h3>
+            <div>
+              <h3 class="font-bold text-sm">Member Directory & Login Credentials</h3>
+              <p class="text-[10px] text-slate-400">Edit member login names, mobile numbers, or share credentials</p>
+            </div>
             <div id="memberManageList" class="space-y-2"></div>
+        </div>
+
+        <!-- Meal Edits & Activity Log (Admin View) -->
+        <div class="bg-white border rounded-2xl p-4 space-y-3 shadow-sm">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h3 class="font-bold text-sm text-slate-800">Meal Edits & Activity Log</h3>
+                    <p class="text-[10px] text-slate-400">Track all member meal edits and change history</p>
+                </div>
+                <span id="adminLogCountBadge" class="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-lg"></span>
+            </div>
+            <!-- Log Filters -->
+            <div class="flex gap-1.5 text-[11px] font-semibold overflow-x-auto pb-1">
+                <button type="button" onclick="setAdminLogFilter('all')" id="logFilter-all" class="px-2.5 py-1 rounded-lg bg-slate-900 text-white font-bold">All Logs</button>
+                <button type="button" onclick="setAdminLogFilter('meal')" id="logFilter-meal" class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-semibold">Meal Edits 🍽️</button>
+                <button type="button" onclick="setAdminLogFilter('cost')" id="logFilter-cost" class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-semibold">Cost 💰</button>
+                <button type="button" onclick="setAdminLogFilter('member')" id="logFilter-member" class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-semibold">Members 👤</button>
+            </div>
+            <div id="adminDetailedAuditLog" class="space-y-2 text-xs max-h-64 overflow-y-auto"></div>
         </div>
 
         <!-- Google Drive Database -->
@@ -286,15 +400,17 @@
         }
     }
 
-    function addLog(action) {
+    function addLog(action, type = 'general', details = null) {
         const userName = state.currentUser ? state.currentUser.name : 'Nokib';
         state.logs.unshift({
             user: userName,
             timestamp: Date.now(),
             time: new Date().toLocaleString(),
-            action: action
+            action: action,
+            type: type,
+            details: details
         });
-        if(state.logs.length > 200) state.logs.pop();
+        if(state.logs.length > 500) state.logs.pop();
     }
 
     // -------------------------------------------------------------
@@ -348,6 +464,7 @@
     }
 
     function logout() {
+      if (typeof cancelCostEdit === 'function') cancelCostEdit();
       state.currentUser = null;
       save(true);
       document.getElementById('authOverlay').classList.remove('hidden');
@@ -377,6 +494,72 @@
         state.members = state.members.filter(m => m.id != id);
         addLog(`Removed member`);
         save();
+    }
+
+    function openEditMemberModal(id) {
+      const member = state.members.find(m => m.id == id);
+      if (!member) return alert("Member not found!");
+      document.getElementById('editMemberId').value = member.id;
+      document.getElementById('editMemberName').value = member.name || '';
+      document.getElementById('editMemberPhone').value = member.phone || '';
+      document.getElementById('editMemberModal').classList.remove('hidden');
+    }
+
+    function closeEditMemberModal() {
+      document.getElementById('editMemberModal').classList.add('hidden');
+      document.getElementById('editMemberId').value = '';
+      document.getElementById('editMemberName').value = '';
+      document.getElementById('editMemberPhone').value = '';
+    }
+
+    function saveEditMember() {
+      const id = document.getElementById('editMemberId').value;
+      const newName = document.getElementById('editMemberName').value.trim();
+      const newPhone = document.getElementById('editMemberPhone').value.trim();
+
+      if (!newName) return alert("Please enter member's full name");
+      if (!newPhone) return alert("Please enter member's mobile number");
+
+      const member = state.members.find(m => m.id == id);
+      if (!member) return alert("Member not found!");
+
+      // Check if duplicate name exists for another member
+      const dup = state.members.find(m => m.id != id && m.name.toLowerCase() === newName.toLowerCase());
+      if (dup) {
+        return alert(`Another member already exists with the name "${newName}". Please provide a unique name.`);
+      }
+
+      const oldName = member.name;
+      const oldPhone = member.phone || '';
+
+      if (oldName === newName && oldPhone === newPhone) {
+        closeEditMemberModal();
+        return;
+      }
+
+      member.name = newName;
+      member.phone = newPhone;
+
+      // If the currently logged-in user is this member, keep their session credential updated
+      if (state.currentUser && state.currentUser.role === 'member' && state.currentUser.id == id) {
+        state.currentUser.name = newName;
+        state.currentUser.phone = newPhone;
+      }
+
+      addLog(`Admin updated login credential: ${oldName} (${oldPhone || 'none'}) -> ${newName} (${newPhone})`, 'member_update', {
+        memberId: id,
+        oldName,
+        newName,
+        oldPhone,
+        newPhone
+      });
+
+      save();
+      closeEditMemberModal();
+
+      if (confirm(`Login credentials updated successfully for ${newName}!\n\nDo you want to share updated credentials via WhatsApp or SMS now?`)) {
+        openShareModal(member);
+      }
     }
 
     function openShareModal(member) {
@@ -432,7 +615,8 @@
 
       const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
       const userLogs = state.logs.filter(l => {
-        const matchUser = (l.user || '').toLowerCase() === userName.toLowerCase();
+        const matchUser = (l.user || '').toLowerCase() === userName.toLowerCase() ||
+          (l.details?.memberName && l.details.memberName.toLowerCase() === userName.toLowerCase());
         const within30Days = l.timestamp ? (l.timestamp >= thirtyDaysAgo) : true;
         return matchUser && within30Days;
       });
@@ -440,12 +624,23 @@
       if (userLogs.length === 0) {
         list.innerHTML = `<div class="text-slate-400 text-center py-4 text-xs">No activity logged for ${userName} in the last 30 days.</div>`;
       } else {
-        list.innerHTML = userLogs.map(l => `
-          <div class="p-2.5 border rounded-xl bg-slate-50">
-            <div class="font-medium text-slate-800 text-xs">${l.action}</div>
-            <div class="text-[10px] text-slate-400 mt-0.5">${l.time}</div>
-          </div>
-        `).join('');
+        list.innerHTML = userLogs.map(l => {
+          const isMealEdit = (l.type === 'meal_edit') || (l.action.toLowerCase().includes('edited') && l.action.toLowerCase().includes('meal'));
+          const isCost = (l.type && l.type.startsWith('cost')) || l.action.toLowerCase().includes('cost') || l.action.toLowerCase().includes('expense');
+          let tag = '';
+          if (isMealEdit) tag = `<span class="text-[9px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded">🍽️ Meal Edit</span>`;
+          else if (isCost) tag = `<span class="text-[9px] bg-orange-100 text-orange-800 font-bold px-1.5 py-0.5 rounded">💰 Cost</span>`;
+
+          return `
+            <div class="p-2.5 border rounded-xl bg-slate-50 space-y-1">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                ${tag}
+                <span class="text-[10px] text-slate-400 font-mono">${l.time}</span>
+              </div>
+              <div class="font-medium text-slate-800 text-xs">${l.action}</div>
+            </div>
+          `;
+        }).join('');
       }
 
       modal.classList.remove('hidden');
@@ -521,32 +716,107 @@
         if(!date) return alert("Select a date");
         if(!state.meals[date]) state.meals[date] = {};
 
-        if (state.currentUser.role === 'member') {
-            // Strictly only allow updating logged-in member's own meal
+        const whoRole = state.currentUser ? state.currentUser.role : 'admin';
+        const whoName = state.currentUser ? state.currentUser.name : 'Admin';
+        let changes = [];
+
+        if (whoRole === 'member') {
             const myId = state.currentUser.id;
             const el = document.getElementById(`in-m-${myId}`);
             if (el) {
-                state.meals[date][myId] = parseFloat(el.value) || 0;
+                const newVal = parseFloat(el.value) || 0;
+                const oldVal = state.meals[date][myId];
+
+                if (oldVal !== undefined && oldVal !== newVal) {
+                    addLog(
+                        `Member ${whoName} edited own meal on ${date}: changed from ${oldVal} to ${newVal}`,
+                        'meal_edit',
+                        { memberId: myId, memberName: whoName, date, oldVal, newVal, by: whoName }
+                    );
+                    changes.push(`${whoName}: ${oldVal} ➔ ${newVal}`);
+                } else if (oldVal === undefined) {
+                    addLog(
+                        `Member ${whoName} recorded own meal on ${date}: ${newVal}`,
+                        'meal_entry',
+                        { memberId: myId, memberName: whoName, date, newVal, by: whoName }
+                    );
+                    changes.push(`${whoName}: ${newVal}`);
+                }
+                state.meals[date][myId] = newVal;
             }
-            addLog(`Member ${state.currentUser.name} updated own meal for ${date}`);
         } else {
             // Admin updates all
             state.members.forEach(m => {
                 const el = document.getElementById(`in-m-${m.id}`);
-                if (el) state.meals[date][m.id] = parseFloat(el.value) || 0;
+                if (el) {
+                    const newVal = parseFloat(el.value) || 0;
+                    const oldVal = state.meals[date][m.id];
+
+                    if (oldVal !== undefined && oldVal !== newVal) {
+                        addLog(
+                            `Admin edited meal for ${m.name} on ${date}: changed from ${oldVal} to ${newVal}`,
+                            'meal_edit',
+                            { memberId: m.id, memberName: m.name, date, oldVal, newVal, by: 'Admin' }
+                        );
+                        changes.push(`${m.name}: ${oldVal} ➔ ${newVal}`);
+                    } else if (oldVal === undefined) {
+                        addLog(
+                            `Admin recorded meal for ${m.name} on ${date}: ${newVal}`,
+                            'meal_entry',
+                            { memberId: m.id, memberName: m.name, date, newVal, by: 'Admin' }
+                        );
+                        changes.push(`${m.name}: ${newVal}`);
+                    }
+                    state.meals[date][m.id] = newVal;
+                }
             });
-            addLog(`Admin updated meals for ${date}`);
         }
 
         save();
-        alert("Meals Saved");
+        if (changes.length > 0) {
+            alert(`Meals saved for ${date}!\nChanges recorded: ${changes.join(', ')}`);
+        } else {
+            alert(`Meals saved for ${date}!`);
+        }
     }
+
+    function editMealDate(date) {
+        document.getElementById('mealDate').value = date;
+        render();
+        const card = document.getElementById('mealEntryCard');
+        if (card) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            card.classList.add('ring-2', 'ring-blue-500');
+            setTimeout(() => card.classList.remove('ring-2', 'ring-blue-500'), 1500);
+        }
+    }
+
+    function setMealDateToday() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('mealDate').value = today;
+        render();
+    }
+
+    function onHeaderDateClick() {
+        showTab('meals');
+        setMealDateToday();
+    }
+
+    let editingCostId = null;
 
     function saveCost() {
         const amtRaw = document.getElementById('costAmount').value;
-        const mid = document.getElementById('costMember').value;
-        const note = document.getElementById('costNote').value;
-        if (!amtRaw || !mid) return alert("Amount and Member required");
+        const note = document.getElementById('costNote').value.trim();
+        const dateInput = document.getElementById('costDate');
+        const costDate = (dateInput && dateInput.value) ? dateInput.value : new Date().toISOString().split('T')[0];
+
+        let mid = document.getElementById('costMember').value;
+        if (state.currentUser && state.currentUser.role === 'member') {
+          mid = state.currentUser.id;
+        }
+
+        if (!amtRaw) return alert("Please enter an amount");
+        if (!mid) return alert("Please select who paid for this expense");
 
         let amt = 0;
         try {
@@ -554,28 +824,138 @@
         } catch(e) {
           return alert("Invalid amount calculation");
         }
-        if(!amt) return alert("Invalid entry");
-        
-        state.costs.push({
-            id: Date.now(),
-            memberId: mid,
-            amount: amt,
-            note: note || 'Mess Expense',
-            date: new Date().toISOString().split('T')[0]
-        });
+        if(!amt || isNaN(amt) || amt <= 0) return alert("Invalid amount entered");
 
-        const payerName = state.members.find(x=>x.id==mid)?.name || (mid === 'mess_fund' ? 'Common Fund' : 'Member');
-        addLog(`Added cost: ${amt} by ${payerName}`);
-        save();
-        document.getElementById('costAmount').value = '';
-        document.getElementById('costNote').value = '';
-        alert("Cost Saved");
+        const payerName = state.members.find(x => x.id == mid)?.name || (mid === 'mess_fund' ? 'Common Fund' : 'Member');
+        const who = (state.currentUser && state.currentUser.role === 'admin') ? 'Admin' : `Member ${state.currentUser ? state.currentUser.name : ''}`;
+
+        if (editingCostId) {
+          const cost = state.costs.find(c => c.id == editingCostId);
+          if (!cost) {
+            cancelCostEdit();
+            return alert("Expense record not found");
+          }
+          if (state.currentUser && state.currentUser.role === 'member' && cost.memberId != state.currentUser.id) {
+            return alert("You can only edit your own expenses.");
+          }
+
+          cost.amount = amt;
+          cost.memberId = mid;
+          cost.note = note || 'Mess Expense';
+          cost.date = costDate;
+
+          addLog(`${who} updated expense: ${amt} (${cost.note})`);
+          cancelCostEdit();
+          save();
+          alert("Expense updated successfully!");
+        } else {
+          state.costs.push({
+              id: Date.now(),
+              memberId: mid,
+              amount: amt,
+              note: note || 'Mess Expense',
+              date: costDate
+          });
+
+          addLog(`${who} added cost: ${amt} by ${payerName}`);
+          document.getElementById('costAmount').value = '';
+          document.getElementById('costNote').value = '';
+          save();
+          alert("Cost Saved Successfully");
+        }
+    }
+
+    function editCost(id) {
+      const cost = state.costs.find(c => c.id == id);
+      if (!cost) return;
+
+      if (state.currentUser && state.currentUser.role === 'member' && cost.memberId != state.currentUser.id) {
+        return alert("You can only edit your own expenses.");
+      }
+
+      editingCostId = id;
+      document.getElementById('costAmount').value = cost.amount;
+      document.getElementById('costNote').value = cost.note || '';
+
+      const memberEl = document.getElementById('costMember');
+      if (memberEl && state.currentUser && state.currentUser.role === 'admin') {
+        memberEl.value = cost.memberId;
+      }
+
+      const dateEl = document.getElementById('costDate');
+      if (dateEl) {
+        dateEl.value = cost.date || new Date().toISOString().split('T')[0];
+      }
+
+      const formTitle = document.getElementById('costFormTitle');
+      if (formTitle) formTitle.innerText = "Edit Expense";
+
+      const saveBtn = document.getElementById('saveCostBtn');
+      if (saveBtn) {
+        saveBtn.innerText = "Update Expense";
+        saveBtn.className = "w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold text-sm transition shadow-sm";
+      }
+
+      const cancelBtn = document.getElementById('cancelCostEditBtn');
+      if (cancelBtn) cancelBtn.classList.remove('hidden');
+
+      const card = document.getElementById('costInputCard');
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    function cancelCostEdit() {
+      editingCostId = null;
+      const amtEl = document.getElementById('costAmount');
+      if (amtEl) amtEl.value = '';
+      const noteEl = document.getElementById('costNote');
+      if (noteEl) noteEl.value = '';
+
+      const dateEl = document.getElementById('costDate');
+      if (dateEl) {
+        dateEl.value = new Date().toISOString().split('T')[0];
+      }
+
+      const memberEl = document.getElementById('costMember');
+      if (memberEl) {
+        if (state.currentUser && state.currentUser.role === 'member') {
+          memberEl.value = state.currentUser.id;
+        } else {
+          memberEl.value = '';
+        }
+      }
+
+      const formTitle = document.getElementById('costFormTitle');
+      if (formTitle) formTitle.innerText = "Add Expense / Bazar Cost";
+
+      const saveBtn = document.getElementById('saveCostBtn');
+      if (saveBtn) {
+        saveBtn.innerText = "Save Expense";
+        saveBtn.className = "w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-bold text-sm transition shadow-sm";
+      }
+
+      const cancelBtn = document.getElementById('cancelCostEditBtn');
+      if (cancelBtn) cancelBtn.classList.add('hidden');
     }
 
     function deleteCost(id) {
-      if(!confirm("Delete this expense?")) return;
+      const cost = state.costs.find(c => c.id == id);
+      if (!cost) return;
+
+      if (state.currentUser && state.currentUser.role === 'member' && cost.memberId != state.currentUser.id) {
+        return alert("You can only delete your own expenses.");
+      }
+
+      if(!confirm(`Delete this expense of ${cost.amount}?`)) return;
+
       state.costs = state.costs.filter(c => c.id != id);
-      addLog("Deleted expense");
+      const who = (state.currentUser && state.currentUser.role === 'admin') ? 'Admin' : `Member ${state.currentUser ? state.currentUser.name : ''}`;
+      addLog(`${who} deleted expense: ${cost.amount} (${cost.note || 'Mess Expense'})`);
+
+      if (editingCostId === id) {
+        cancelCostEdit();
+      }
       save();
     }
 
@@ -669,13 +1049,11 @@
           save(true);
           document.getElementById('driveBadge').innerText = "Drive Synced";
           document.getElementById('driveBadge').className = "text-[10px] font-bold px-2 py-0.5 rounded bg-green-100 text-green-700";
-          document.getElementById('driveStatusIndicator').innerText = "• Drive Synced";
           if (!silent) alert("Synced with Google Drive successfully!");
         } else {
           await pushDriveBackground();
           document.getElementById('driveBadge').innerText = "Drive Synced";
           document.getElementById('driveBadge').className = "text-[10px] font-bold px-2 py-0.5 rounded bg-green-100 text-green-700";
-          document.getElementById('driveStatusIndicator').innerText = "• Drive Synced";
           if (!silent) alert("Initial database saved to Google Drive!");
         }
       } catch (err) {
@@ -708,7 +1086,6 @@
 
         document.getElementById('driveBadge').innerText = "Drive Synced";
         document.getElementById('driveBadge').className = "text-[10px] font-bold px-2 py-0.5 rounded bg-green-100 text-green-700";
-        document.getElementById('driveStatusIndicator').innerText = "• Drive Synced";
       } catch (e) {
         console.log("Background push error", e);
       }
@@ -735,6 +1112,28 @@
           userBadge.innerHTML = `<span onclick="showUserActivity('${state.currentUser.name}')" class="cursor-pointer hover:underline" title="Click to view last 30 days activity">Member: ${state.currentUser.name}</span>`;
           userBadge.className = "text-[10px] text-green-600 font-bold uppercase";
           document.getElementById('btn-admin').classList.add('hidden');
+        }
+
+        // Live Header Date Display
+        const now = new Date();
+        const headerDesktop = document.getElementById('headerDateTextDesktop');
+        if (headerDesktop) {
+          headerDesktop.innerText = now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+        }
+        const headerMobile = document.getElementById('headerDateTextMobile');
+        if (headerMobile) {
+          headerMobile.innerText = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        }
+
+        // Update Month Select Button Tooltip
+        const curMonthVal = document.getElementById('monthSelect')?.value;
+        const monthBtn = document.getElementById('monthSelectBtn');
+        if (monthBtn && curMonthVal) {
+          try {
+            const [y, m] = curMonthVal.split('-');
+            const mName = new Date(parseInt(y), parseInt(m) - 1, 1).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+            monthBtn.setAttribute('title', `Selected Month: ${mName} (Click to change)`);
+          } catch(e) {}
         }
 
         const month = document.getElementById('monthSelect').value;
@@ -815,16 +1214,17 @@
             `;
         }).join('');
 
-        // Admin List with Share Button
+        // Admin List with Edit & Share Button
         document.getElementById('memberManageList').innerHTML = state.members.map(m => `
-            <div class="flex justify-between items-center py-2 border-b last:border-0">
+            <div class="flex justify-between items-center py-2.5 border-b last:border-0">
                 <div>
                   <span onclick="showUserActivity('${m.name}')" class="text-sm font-semibold cursor-pointer hover:text-blue-600 hover:underline" title="Click to view 30-day activity">${m.name}</span>
-                  <span class="text-xs text-slate-400 block">${m.phone || ''}</span>
+                  <span class="text-xs text-slate-400 block">${m.phone || 'No phone'}</span>
                 </div>
-                <div class="flex items-center gap-2">
-                  <button onclick='openShareModal(${JSON.stringify(m)})' class="text-xs bg-blue-50 text-blue-600 border border-blue-200 px-2 py-1 rounded-lg font-bold">Share</button>
-                  <button onclick="removeMember(${m.id})" class="text-red-500 text-xs">Remove</button>
+                <div class="flex items-center gap-1.5">
+                  <button onclick="openEditMemberModal(${m.id})" class="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-lg font-bold transition">Edit</button>
+                  <button onclick='openShareModal(${JSON.stringify(m)})' class="text-xs bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 px-2.5 py-1 rounded-lg font-bold transition">Share</button>
+                  <button onclick="removeMember(${m.id})" class="text-xs text-red-500 hover:text-red-700 px-1.5 py-1 font-semibold transition">Remove</button>
                 </div>
             </div>
         `).join('');
@@ -861,33 +1261,157 @@
           }).join('');
         }
 
-        // Hide expense entry form for regular members (only Admin can record mess expenses)
-        const costInputCard = document.getElementById('costInputCard');
-        if (costInputCard) {
-          if (role === 'admin') {
-            costInputCard.classList.remove('hidden');
+        // Render Meal History List (This Month)
+        const mealHistoryListEl = document.getElementById('mealHistoryList');
+        if (mealHistoryListEl) {
+          const recordedDates = Object.keys(state.meals).filter(d => d.startsWith(month));
+          const dateSet = new Set(recordedDates);
+          const todayStr = new Date().toISOString().split('T')[0];
+          if (todayStr.startsWith(month)) dateSet.add(todayStr);
+
+          const sortedDates = Array.from(dateSet).sort().reverse();
+          const badgeEl = document.getElementById('mealHistoryDaysBadge');
+          if (badgeEl) {
+            badgeEl.innerText = `${sortedDates.length} recorded day${sortedDates.length === 1 ? '' : 's'}`;
+          }
+
+          if (sortedDates.length === 0) {
+            mealHistoryListEl.innerHTML = `<div class="text-slate-400 text-center py-4">No meal records found for this month.</div>`;
           } else {
-            costInputCard.classList.add('hidden');
+            mealHistoryListEl.innerHTML = sortedDates.map(d => {
+              const dMeals = state.meals[d] || {};
+              const isToday = (d === todayStr);
+              const isSelected = (d === curDate);
+
+              let dateLabel = d;
+              try {
+                const parts = d.split('-');
+                const dt = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+                dateLabel = dt.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+              } catch(e) {}
+
+              if (role === 'member') {
+                const count = dMeals[state.currentUser.id];
+                const hasEntry = (count !== undefined);
+                const countText = hasEntry ? `${count} ${count === 1 ? 'Meal' : 'Meals'}` : 'Not entered';
+
+                return `
+                  <div class="p-2.5 border rounded-xl ${isSelected ? 'bg-blue-50/80 border-blue-300 ring-1 ring-blue-300' : 'bg-slate-50'} flex justify-between items-center gap-2 transition">
+                    <div>
+                      <div class="flex items-center gap-1.5 flex-wrap">
+                        <b class="text-xs text-slate-800">${dateLabel}</b>
+                        <span class="text-[10px] text-slate-400 font-mono">(${d})</span>
+                        ${isToday ? '<span class="text-[9px] bg-blue-100 text-blue-700 font-bold px-1.5 py-0.5 rounded">Today</span>' : ''}
+                      </div>
+                      <span class="text-[11px] font-semibold ${hasEntry && count > 0 ? 'text-green-600' : 'text-slate-400'}">
+                        ${hasEntry ? (count > 0 ? `🍽️ ${countText}` : '❌ 0 Meals (Off)') : '⏳ Not entered'}
+                      </span>
+                    </div>
+                    <button type="button" onclick="editMealDate('${d}')" class="text-xs ${isSelected ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border border-blue-200 hover:bg-blue-50'} px-3 py-1.5 rounded-lg font-bold transition shadow-sm">
+                      ${isSelected ? 'Editing' : 'Edit'}
+                    </button>
+                  </div>
+                `;
+              } else {
+                let totalDay = 0;
+                const chips = state.members.map(m => {
+                  const val = dMeals[m.id];
+                  if (val !== undefined) totalDay += val;
+                  return `<span class="inline-block bg-white border border-slate-200 px-1.5 py-0.5 rounded text-[10px] text-slate-700 mr-1 mt-0.5 font-medium">${m.name}: <b class="text-slate-900">${val !== undefined ? val : '-'}</b></span>`;
+                }).join('');
+
+                return `
+                  <div class="p-2.5 border rounded-xl ${isSelected ? 'bg-blue-50/80 border-blue-300 ring-1 ring-blue-300' : 'bg-slate-50'} flex justify-between items-center gap-2 transition">
+                    <div class="min-w-0 flex-1">
+                      <div class="flex items-center gap-1.5 flex-wrap">
+                        <b class="text-xs text-slate-800">${dateLabel}</b>
+                        <span class="text-[10px] text-slate-400 font-mono">(${d})</span>
+                        ${isToday ? '<span class="text-[9px] bg-blue-100 text-blue-700 font-bold px-1.5 py-0.5 rounded">Today</span>' : ''}
+                        <span class="text-[10px] bg-slate-200 text-slate-800 font-mono font-bold px-1.5 py-0.5 rounded">Total: ${totalDay}</span>
+                      </div>
+                      <div class="flex flex-wrap items-center mt-1">
+                        ${chips}
+                      </div>
+                    </div>
+                    <button type="button" onclick="editMealDate('${d}')" class="shrink-0 text-xs ${isSelected ? 'bg-blue-600 text-white' : 'bg-white text-blue-600 border border-blue-200 hover:bg-blue-50'} px-3 py-1.5 rounded-lg font-bold transition shadow-sm">
+                      ${isSelected ? 'Editing' : 'Edit'}
+                    </button>
+                  </div>
+                `;
+              }
+            }).join('');
           }
         }
 
-        // Cost Dropdown (Only members)
-        document.getElementById('costMember').innerHTML = `<option value="">Paid By Member...</option>` + 
-            state.members.map(m => `<option value="${m.id}">${m.name} (${m.phone || ''})</option>`).join('');
+        // Expense Entry Form (Accessible to BOTH Admin and Members)
+        const costInputCard = document.getElementById('costInputCard');
+        if (costInputCard) {
+          costInputCard.classList.remove('hidden');
+        }
+
+        const costMemberSelect = document.getElementById('costMember');
+        if (costMemberSelect) {
+          if (role === 'member') {
+            costMemberSelect.innerHTML = `<option value="${state.currentUser.id}" selected>${state.currentUser.name} (You)</option>`;
+            costMemberSelect.disabled = true;
+            costMemberSelect.classList.add('bg-slate-100', 'cursor-not-allowed');
+          } else {
+            costMemberSelect.disabled = false;
+            costMemberSelect.classList.remove('bg-slate-100', 'cursor-not-allowed');
+            const curVal = costMemberSelect.value;
+            costMemberSelect.innerHTML = `<option value="">Paid By Member...</option>` + 
+                `<option value="mess_fund">Common Mess Fund</option>` +
+                state.members.map(m => `<option value="${m.id}">${m.name} (${m.phone || ''})</option>`).join('');
+            if (curVal) costMemberSelect.value = curVal;
+          }
+        }
+
+        // Reset edit form text if not currently editing
+        if (!editingCostId) {
+          const formTitle = document.getElementById('costFormTitle');
+          if (formTitle) formTitle.innerText = "Add Expense / Bazar Cost";
+          const saveBtn = document.getElementById('saveCostBtn');
+          if (saveBtn) {
+            saveBtn.innerText = "Save Expense";
+            saveBtn.className = "w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-bold text-sm transition shadow-sm";
+          }
+          const cancelBtn = document.getElementById('cancelCostEditBtn');
+          if (cancelBtn) cancelBtn.classList.add('hidden');
+          const costDateInput = document.getElementById('costDate');
+          if (costDateInput && !costDateInput.value) {
+            costDateInput.value = new Date().toISOString().split('T')[0];
+          }
+        }
 
         // Cost list
-        const monthCosts = state.costs.filter(c => c.date.startsWith(month));
+        const monthCosts = state.costs.filter(c => c.date && c.date.startsWith(month));
+        const costCountBadge = document.getElementById('costCountBadge');
+        if (costCountBadge) {
+          costCountBadge.innerText = `${monthCosts.length} item${monthCosts.length === 1 ? '' : 's'}`;
+        }
+
         document.getElementById('costHistoryList').innerHTML = monthCosts.length === 0 ?
-          `<div class="text-slate-400 text-center py-2">No expenses for this month.</div>` :
+          `<div class="text-slate-400 text-center py-4">No expenses recorded for this month.</div>` :
           monthCosts.map(c => {
-            const payer = c.memberId === 'mess_fund' ? 'Common Fund' : (state.members.find(x=>x.id==c.memberId)?.name || 'Member');
+            const payer = c.memberId === 'mess_fund' ? 'Common Fund' : (state.members.find(x => x.id == c.memberId)?.name || 'Member');
+            const isOwn = (role === 'member' && c.memberId == state.currentUser.id);
+            const canManage = (role === 'admin') || isOwn;
             return `
-              <div class="p-2 border rounded-xl bg-slate-50 flex justify-between items-center">
-                <div>
-                  <b>${c.amount.toFixed(2)}</b> by ${payer}
-                  <span class="text-[10px] text-slate-400 block">${c.note} &bull; ${c.date}</span>
+              <div class="p-2.5 border rounded-xl bg-slate-50 flex justify-between items-center gap-2">
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-baseline gap-1.5 flex-wrap">
+                    <b class="text-sm font-mono text-slate-900">${c.amount.toFixed(2)}</b>
+                    <span class="text-xs text-slate-600">by <span class="font-bold text-slate-800">${payer}</span></span>
+                    ${isOwn ? '<span class="text-[9px] bg-green-100 text-green-700 font-bold px-1.5 py-0.5 rounded">You</span>' : ''}
+                  </div>
+                  <span class="text-[11px] text-slate-500 block truncate mt-0.5">${c.note || 'Mess Expense'} &bull; <span class="font-mono text-[10px] text-slate-400">${c.date}</span></span>
                 </div>
-                ${role === 'admin' ? `<button onclick="deleteCost(${c.id})" class="text-red-500 text-xs">Delete</button>` : ''}
+                ${canManage ? `
+                  <div class="flex items-center gap-1.5 shrink-0">
+                    <button onclick="editCost(${c.id})" class="text-blue-600 hover:text-blue-800 hover:bg-blue-100 text-xs font-bold px-2 py-1 rounded-lg bg-blue-50 border border-blue-200 transition">Edit</button>
+                    <button onclick="deleteCost(${c.id})" class="text-red-500 hover:text-red-700 hover:bg-red-100 text-xs font-bold px-2 py-1 rounded-lg bg-red-50 border border-red-200 transition">Delete</button>
+                  </div>
+                ` : ''}
               </div>
             `;
           }).join('');
@@ -915,14 +1439,105 @@
         }
 
         // Logs (Clickable for 30-day activity)
-        document.getElementById('auditLog').innerHTML = state.logs.map(l => `
+        document.getElementById('auditLog').innerHTML = state.logs.map(l => {
+          const isMealEdit = (l.type === 'meal_edit') || (l.action.toLowerCase().includes('edited') && l.action.toLowerCase().includes('meal'));
+          const isCost = (l.type && l.type.startsWith('cost')) || l.action.toLowerCase().includes('cost') || l.action.toLowerCase().includes('expense');
+          const isMember = (l.type && l.type.startsWith('member')) || l.action.toLowerCase().includes('member') || l.action.toLowerCase().includes('credential');
+          let tag = '';
+          if (isMealEdit) tag = `<span class="text-[9px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded">🍽️ Meal Edit</span>`;
+          else if (isCost) tag = `<span class="text-[9px] bg-orange-100 text-orange-800 font-bold px-1.5 py-0.5 rounded">💰 Cost</span>`;
+          else if (isMember) tag = `<span class="text-[9px] bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded">👤 Member</span>`;
+
+          return `
             <div class="border-b pb-1">
-                <span onclick="showUserActivity('${l.user}')" class="text-blue-600 font-bold hover:underline cursor-pointer" title="Click to view 30 days activity">${l.user}:</span> ${l.action} 
-                <span class="text-slate-400 block">${l.time}</span>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  ${tag}
+                  <span onclick="showUserActivity('${l.user}')" class="text-blue-600 font-bold hover:underline cursor-pointer" title="Click to view 30 days activity">${l.user}:</span>
+                  <span class="text-slate-700 font-medium">${l.action}</span>
+                </div>
+                <span class="text-slate-400 text-[10px] block mt-0.5 font-mono">${l.time}</span>
             </div>
-        `).join('');
+          `;
+        }).join('');
+
+        // Admin detailed audit log
+        renderAdminLogs();
 
         document.getElementById('googleDriveUrlInput').value = state.googleDriveUrl || '';
+    }
+
+    let currentAdminLogFilter = 'all';
+
+    function setAdminLogFilter(filter) {
+      currentAdminLogFilter = filter;
+      ['all', 'meal', 'cost', 'member'].forEach(f => {
+        const btn = document.getElementById(`logFilter-${f}`);
+        if (btn) {
+          if (f === filter) {
+            btn.className = "px-2.5 py-1 rounded-lg bg-slate-900 text-white font-bold";
+          } else {
+            btn.className = "px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-semibold";
+          }
+        }
+      });
+      renderAdminLogs();
+    }
+
+    function renderAdminLogs() {
+      const container = document.getElementById('adminDetailedAuditLog');
+      if (!container) return;
+
+      let list = state.logs || [];
+      if (currentAdminLogFilter === 'meal') {
+        list = list.filter(l => (l.type && l.type.startsWith('meal')) || l.action.toLowerCase().includes('meal'));
+      } else if (currentAdminLogFilter === 'cost') {
+        list = list.filter(l => (l.type && l.type.startsWith('cost')) || l.action.toLowerCase().includes('cost') || l.action.toLowerCase().includes('expense'));
+      } else if (currentAdminLogFilter === 'member') {
+        list = list.filter(l => (l.type && l.type.startsWith('member')) || l.action.toLowerCase().includes('member') || l.action.toLowerCase().includes('credential'));
+      }
+
+      const badge = document.getElementById('adminLogCountBadge');
+      if (badge) {
+        badge.innerText = `${list.length} item${list.length === 1 ? '' : 's'}`;
+      }
+
+      if (list.length === 0) {
+        container.innerHTML = `<div class="text-slate-400 text-center py-4">No logs found for this filter.</div>`;
+        return;
+      }
+
+      container.innerHTML = list.map(l => {
+        const isMealEdit = (l.type === 'meal_edit') || (l.action.toLowerCase().includes('edited') && l.action.toLowerCase().includes('meal'));
+        const isMealEntry = (l.type === 'meal_entry') || l.action.toLowerCase().includes('meal');
+        const isCost = (l.type && l.type.startsWith('cost')) || l.action.toLowerCase().includes('cost') || l.action.toLowerCase().includes('expense');
+        const isMember = (l.type && l.type.startsWith('member')) || l.action.toLowerCase().includes('member') || l.action.toLowerCase().includes('credential');
+
+        let tag = '';
+        if (isMealEdit) {
+          tag = `<span class="text-[9px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded">🍽️ Meal Edit</span>`;
+        } else if (isCost) {
+          tag = `<span class="text-[9px] bg-orange-100 text-orange-800 font-bold px-1.5 py-0.5 rounded">💰 Cost</span>`;
+        } else if (isMember) {
+          tag = `<span class="text-[9px] bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded">👤 Member</span>`;
+        } else if (isMealEntry) {
+          tag = `<span class="text-[9px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded">🍽️ Meal</span>`;
+        } else {
+          tag = `<span class="text-[9px] bg-slate-200 text-slate-700 font-bold px-1.5 py-0.5 rounded">System</span>`;
+        }
+
+        return `
+          <div class="p-2.5 border rounded-xl bg-slate-50 flex justify-between items-start gap-2">
+            <div class="space-y-0.5 min-w-0">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                ${tag}
+                <span class="font-bold text-slate-800 cursor-pointer hover:underline hover:text-blue-600" onclick="showUserActivity('${l.user}')">${l.user}</span>
+              </div>
+              <p class="text-xs text-slate-700 font-medium break-words">${l.action}</p>
+            </div>
+            <span class="text-[10px] text-slate-400 shrink-0 font-mono">${l.time || ''}</span>
+          </div>
+        `;
+      }).join('');
     }
 
     function copyShareText() {
@@ -982,6 +1597,8 @@
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('monthSelect').value = today.substring(0,7);
     document.getElementById('mealDate').value = today;
+    const costDateEl = document.getElementById('costDate');
+    if (costDateEl) costDateEl.value = today;
     document.getElementById('monthSelect').addEventListener('change', render);
     document.getElementById('mealDate').addEventListener('change', render);
     
