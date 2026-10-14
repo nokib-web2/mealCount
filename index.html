@@ -270,9 +270,6 @@
     </section>
 
     <section id="tab-meals" class="tab-content hidden no-print space-y-4">
-        <!-- ADVANCE MEAL NOTICE & PREDICTION CARD -->
-        <div id="advanceMealSection" class="space-y-3"></div>
-
         <div class="bg-white border rounded-2xl p-4 space-y-3 shadow-sm" id="mealEntryCard">
             <div class="flex justify-between items-center">
                 <div>
@@ -288,6 +285,9 @@
             <div id="mealInputContainer" class="space-y-2"></div>
             <button id="saveMealBtn" onclick="saveMeals()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold text-sm transition shadow-sm">Save Meal Entry</button>
         </div>
+
+        <!-- MEAL OFF NOTICE (Placed below Meal Entry) -->
+        <div id="advanceMealSection" class="space-y-3"></div>
 
         <!-- Monthly Meal History with Edit Option -->
         <div class="bg-white border rounded-2xl p-4 space-y-3 shadow-sm">
@@ -357,6 +357,47 @@
               <p class="text-[10px] text-slate-400">Edit member login names, mobile numbers, or share credentials</p>
             </div>
             <div id="memberManageList" class="space-y-2"></div>
+        </div>
+
+        <!-- Member Meal OFF Notices (Admin View & Manage) -->
+        <div class="bg-white border rounded-2xl p-4 space-y-3 shadow-sm">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h3 class="font-bold text-sm text-slate-800">Member Meal OFF Notices (মিল বন্ধের নোটিশ)</h3>
+                    <p class="text-[10px] text-slate-400">Track and manage member meal off requests</p>
+                </div>
+                <span id="adminOffCountBadge" class="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-lg"></span>
+            </div>
+            <div id="adminMealOffNoticeList" class="space-y-2 text-xs max-h-56 overflow-y-auto"></div>
+            <!-- Admin Quick Add OFF Notice Form -->
+            <div class="border-t pt-2 space-y-2">
+                <button type="button" onclick="toggleAdminAddOffForm()" id="toggleAdminOffBtn" class="text-xs text-blue-600 hover:underline font-bold flex items-center gap-1">
+                  <span>➕</span> Add OFF Notice for a Member
+                </button>
+                <div id="adminAddOffForm" class="hidden space-y-2 p-3 bg-slate-50 border rounded-xl">
+                  <div>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">Select Member</label>
+                    <select id="adminOffMemberSelect" class="w-full p-2 border rounded-lg text-xs font-semibold bg-white text-slate-800"></select>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">From Date (বন্ধ শুরু)</label>
+                      <input type="date" id="adminOffFromDate" class="w-full p-2 border rounded-lg text-xs bg-white text-slate-800 font-bold">
+                    </div>
+                    <div>
+                      <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">Resume Date (চালু হবে)</label>
+                      <input type="date" id="adminOffResumeDate" class="w-full p-2 border rounded-lg text-xs bg-white text-slate-800 font-bold">
+                    </div>
+                  </div>
+                  <div>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">Note (Optional)</label>
+                    <input type="text" id="adminOffNote" placeholder="Reason (e.g. Home, Exam)" class="w-full p-2 border rounded-lg text-xs bg-white text-slate-800">
+                  </div>
+                  <button type="button" onclick="submitAdminMealOffNotice()" class="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg font-bold text-xs shadow-xs transition">
+                    Save Member OFF Notice
+                  </button>
+                </div>
+            </div>
         </div>
 
         <!-- Meal Edits & Activity Log (Admin View) -->
@@ -1118,6 +1159,13 @@
       }
 
       state.mealOffNotices = state.mealOffNotices || [];
+      // Supersede any prior active notice for this member
+      state.mealOffNotices.forEach(n => {
+        if (n.memberId == state.currentUser.id && n.status === 'active') {
+          n.status = 'superseded';
+        }
+      });
+
       const newNotice = {
         id: Date.now(),
         memberId: state.currentUser.id,
@@ -1161,7 +1209,7 @@
       notice.status = 'cancelled';
       addLog(`Meal OFF notice cancelled for ${notice.memberName} (${notice.fromDate} - ${notice.resumeDate})`, 'meal_off_cancel');
       save();
-      alert("মিল বন্ধের নোটিশ বাতিল করা হয়েছে। আপনার মিল চালু হিসেবে গণ্য হবে।");
+      alert(`${notice.memberName}-এর মিল বন্ধের নোটিশ বাতিল করা হয়েছে। মিল পুনরায় চালু হিসেবে গণ্য হবে।`);
     }
 
     function renderAdvanceMealSection() {
@@ -1266,12 +1314,19 @@
 
         if (activeNotices.length === 0) {
           container.innerHTML = `
-            <div class="bg-green-50/60 border border-green-200 rounded-2xl p-3.5 flex justify-between items-center text-xs">
-              <div class="flex items-center gap-2">
-                <span>✅</span>
-                <span class="text-green-800 font-semibold text-xs">বর্তমানে কোনো মেম্বারের মিল বন্ধের নোটিশ নেই (সকলের মিল চালু)</span>
+            <div class="bg-white border rounded-2xl p-4 space-y-2 shadow-sm border-slate-200">
+              <div class="flex justify-between items-center text-xs">
+                <div class="flex items-center gap-2">
+                  <span class="text-base">📢</span>
+                  <div>
+                    <h3 class="font-bold text-xs uppercase text-slate-800">মেম্বার মিল বন্ধের নোটিশ (Meal OFF Notices)</h3>
+                    <p class="text-[10px] text-green-600 font-semibold mt-0.5">✅ বর্তমানে কোনো মেম্বারের মিল বন্ধ নেই (সকলের মিল চালু)</p>
+                  </div>
+                </div>
+                <button type="button" onclick="showTab('admin'); toggleAdminAddOffForm(true);" class="text-[11px] bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 shrink-0">
+                  <span>➕</span> নোটিশ দিন
+                </button>
               </div>
-              <span class="text-[10px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-lg">All Active</span>
             </div>
           `;
         } else {
@@ -1282,9 +1337,14 @@
                   <span class="text-base">📢</span>
                   <h3 class="text-xs font-bold uppercase text-red-900">মেম্বার মিল বন্ধ নোটিশ (Active OFF Notices)</h3>
                 </div>
-                <span class="text-xs font-bold bg-red-600 text-white px-2 py-0.5 rounded-lg">
-                  ${activeNotices.length} জন বন্ধ
-                </span>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold bg-red-600 text-white px-2 py-0.5 rounded-lg shrink-0">
+                    ${activeNotices.length} জন বন্ধ
+                  </span>
+                  <button type="button" onclick="showTab('admin'); toggleAdminAddOffForm(true);" class="text-[11px] bg-white hover:bg-red-100 text-red-700 border border-red-300 px-2 py-0.5 rounded-lg font-bold transition flex items-center gap-1 shrink-0">
+                    <span>➕</span> নোটিশ দিন
+                  </button>
+                </div>
               </div>
 
               <div class="space-y-1.5 max-h-48 overflow-y-auto">
@@ -1301,7 +1361,7 @@
                       </span>
                     </div>
                     <button type="button" onclick="cancelMemberOffNotice(${n.id})" class="text-red-500 hover:text-red-700 text-xs font-bold px-2 py-1 bg-red-50 hover:bg-red-100 rounded-lg transition shrink-0" title="Cancel notice">
-                      বাতিল
+                      বাতিল / চালু
                     </button>
                   </div>
                 `).join('')}
@@ -1310,6 +1370,165 @@
           `;
         }
       }
+    }
+
+    // -------------------------------------------------------------
+    // ADMIN MEAL OFF NOTICES MANAGEMENT
+    // -------------------------------------------------------------
+    function toggleAdminAddOffForm(forceState) {
+      const form = document.getElementById('adminAddOffForm');
+      const btn = document.getElementById('toggleAdminOffBtn');
+      if (!form || !btn) return;
+      const isHidden = (forceState !== undefined) ? !forceState : form.classList.contains('hidden');
+      if (isHidden) {
+        form.classList.remove('hidden');
+        btn.innerHTML = '<span>✖️</span> Close Form';
+        form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } else {
+        form.classList.add('hidden');
+        btn.innerHTML = '<span>➕</span> Add OFF Notice for a Member';
+      }
+    }
+
+    function submitAdminMealOffNotice() {
+      const select = document.getElementById('adminOffMemberSelect');
+      const fromEl = document.getElementById('adminOffFromDate');
+      const resumeEl = document.getElementById('adminOffResumeDate');
+      const noteEl = document.getElementById('adminOffNote');
+
+      if (!select || !fromEl || !resumeEl) return;
+
+      const memberId = select.value;
+      if (!memberId) {
+        return alert("অনুগ্রহ করে মেম্বার সিলেক্ট করুন (Please select a member)");
+      }
+
+      const fromDate = fromEl.value;
+      const resumeDate = resumeEl.value;
+      const note = (noteEl ? noteEl.value : '').trim();
+
+      if (!fromDate || !resumeDate) {
+        return alert("মিল বন্ধের শুরু এবং পুনরায় চালুর তারিখ সিলেক্ট করুন (Please select both dates)");
+      }
+
+      if (resumeDate <= fromDate) {
+        return alert("চালু হওয়ার তারিখ (Resume date) বন্ধের তারিখ (From date) এর পরের তারিখ হতে হবে।");
+      }
+
+      const member = state.members.find(m => m.id == memberId);
+      if (!member) {
+        return alert("মেম্বার পাওয়া যায়নি (Member not found)");
+      }
+
+      state.mealOffNotices = state.mealOffNotices || [];
+      // Supersede any existing active notice for this member
+      state.mealOffNotices.forEach(n => {
+        if (n.memberId == member.id && n.status === 'active') {
+          n.status = 'superseded';
+        }
+      });
+
+      const newNotice = {
+        id: Date.now(),
+        memberId: member.id,
+        memberName: member.name,
+        fromDate,
+        resumeDate,
+        note,
+        createdAt: new Date().toISOString(),
+        status: 'active'
+      };
+
+      state.mealOffNotices.push(newNotice);
+
+      // Pre-fill 0 meals for dates in this range in state.meals
+      let cur = new Date(fromDate);
+      const end = new Date(resumeDate);
+      while (cur < end) {
+        const dStr = cur.toISOString().split('T')[0];
+        if (!state.meals[dStr]) state.meals[dStr] = {};
+        if (state.meals[dStr][member.id] === undefined) {
+          state.meals[dStr][member.id] = 0;
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+
+      addLog(
+        `Admin added meal OFF notice for ${member.name}: ${fromDate} to ${resumeDate}${note ? ` ("${note}")` : ''}`,
+        'meal_off',
+        { memberId: member.id, fromDate, resumeDate, note }
+      );
+
+      save();
+      toggleAdminAddOffForm(false);
+      if (noteEl) noteEl.value = '';
+      alert(`মেম্বার ${member.name}-এর মিল বন্ধের নোটিশ সফলভাবে সেভ হয়েছে!\n\nবন্ধ শুরু: ${formatDateNice(fromDate)}\nপুনরায় চালু: ${formatDateNice(resumeDate)}`);
+    }
+
+    function renderAdminTabOffNotices() {
+      const container = document.getElementById('adminMealOffNoticeList');
+      const badge = document.getElementById('adminOffCountBadge');
+      const select = document.getElementById('adminOffMemberSelect');
+      if (!container) return;
+
+      state.mealOffNotices = state.mealOffNotices || [];
+      const todayStr = new Date().toISOString().split('T')[0];
+      const activeNotices = state.mealOffNotices.filter(n => n.status === 'active' && n.resumeDate >= todayStr);
+
+      if (badge) {
+        badge.innerText = `${activeNotices.length} Active OFF`;
+      }
+
+      // Populate member select
+      if (select) {
+        const curVal = select.value;
+        select.innerHTML = `<option value="">Select Member...</option>` +
+          state.members.map(m => `<option value="${m.id}">${m.name} (${m.phone || 'No phone'})</option>`).join('');
+        if (curVal) select.value = curVal;
+      }
+
+      // Set default dates if empty
+      const fromEl = document.getElementById('adminOffFromDate');
+      const resumeEl = document.getElementById('adminOffResumeDate');
+      if (fromEl && !fromEl.value) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        fromEl.value = tomorrow.toISOString().split('T')[0];
+      }
+      if (resumeEl && !resumeEl.value) {
+        const res = new Date();
+        res.setDate(res.getDate() + 4);
+        resumeEl.value = res.toISOString().split('T')[0];
+      }
+
+      if (activeNotices.length === 0) {
+        container.innerHTML = `
+          <div class="bg-green-50/70 border border-green-200 rounded-xl p-3 text-center text-green-800">
+            <span class="font-bold">✅ বর্তমানে কোনো মেম্বারের মিল বন্ধের নোটিশ নেই</span>
+            <span class="block text-[11px] text-green-600 mt-0.5">সকল মেম্বারের মিল চালু রয়েছে</span>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = activeNotices.map(n => `
+        <div class="p-2.5 border border-red-200 rounded-xl bg-white flex justify-between items-center gap-2 shadow-2xs">
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <b class="text-slate-800 font-bold">${n.memberName}</b>
+              <span class="text-[9px] bg-red-100 text-red-700 font-bold px-1.5 py-0.2 rounded">🛑 মিল বন্ধ</span>
+            </div>
+            <div class="text-[11px] text-slate-600 mt-0.5">
+              <span>${formatDateNice(n.fromDate)}</span> থেকে 
+              <b class="text-green-700">${formatDateNice(n.resumeDate)}</b> চালু
+              ${n.note ? `<span class="italic text-slate-400 block sm:inline sm:ml-1">&bull; "${n.note}"</span>` : ''}
+            </div>
+          </div>
+          <button type="button" onclick="cancelMemberOffNotice(${n.id})" class="text-red-500 hover:text-red-700 hover:bg-red-50 border border-red-200 px-2.5 py-1 rounded-lg text-xs font-bold transition shrink-0" title="Cancel notice and resume meal">
+            বাতিল / চালু
+          </button>
+        </div>
+      `).join('');
     }
 
     // -------------------------------------------------------------
@@ -2138,6 +2357,7 @@
 
         // Admin detailed audit log
         renderAdminLogs();
+        renderAdminTabOffNotices();
 
         document.getElementById('googleDriveUrlInput').value = state.googleDriveUrl || '';
     }
