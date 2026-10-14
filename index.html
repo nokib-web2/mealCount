@@ -111,6 +111,45 @@
     </div>
   </div>
 
+  <!-- VOUCHER / BILL SLIP MODAL -->
+  <div id="voucherModal" class="fixed inset-0 z-[125] bg-black/60 flex items-center justify-center p-3 sm:p-4 hidden overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-4 space-y-3 shadow-2xl my-auto">
+      <div class="flex justify-between items-center border-b pb-2">
+        <div class="flex items-center gap-2">
+          <span class="text-base">🧾</span>
+          <div>
+            <h3 class="font-bold text-sm text-slate-900">Monthly Bill Slip / ভাউচার</h3>
+            <p class="text-[10px] text-slate-400">Digital member bill statement</p>
+          </div>
+        </div>
+        <button onclick="closeVoucherModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold p-1 leading-none">&times;</button>
+      </div>
+
+      <!-- Preview Container -->
+      <div id="voucherSlipContent" class="space-y-3"></div>
+
+      <!-- Actions -->
+      <div class="space-y-2 pt-1">
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" onclick="downloadVoucherImage()" class="bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition">
+            <span>📥</span> Download Image
+          </button>
+          <button type="button" onclick="shareVoucherWhatsApp()" class="bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition">
+            <span>💬</span> WhatsApp
+          </button>
+        </div>
+        <div class="flex gap-2">
+          <button type="button" onclick="copyVoucherText()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-xl font-bold text-xs transition">
+            📋 Copy Text
+          </button>
+          <button type="button" onclick="closeVoucherModal()" class="px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 py-2 rounded-xl font-bold text-xs transition">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- HEADER -->
   <header class="no-print sticky top-0 z-30 bg-white/95 backdrop-blur border-b px-3 sm:px-4 py-2.5 sm:py-3 shadow-xs">
     <div class="max-w-xl mx-auto flex justify-between items-center gap-2">
@@ -180,6 +219,9 @@
         <div><span class="text-[10px] text-slate-500 block">My Paid</span><b id="myViewPaid" class="font-mono">0</b></div>
         <div><span class="text-[10px] text-slate-500 block">Meal Cost</span><b id="myViewCost" class="font-mono">0</b></div>
       </div>
+      <button type="button" onclick="openVoucherForCurrentUser()" class="w-full mt-2 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition">
+        <span>🧾</span> Download My Monthly Bill Slip
+      </button>
     </div>
 
     <!-- Navigation (Original buttons) -->
@@ -228,6 +270,9 @@
     </section>
 
     <section id="tab-meals" class="tab-content hidden no-print space-y-4">
+        <!-- ADVANCE MEAL NOTICE & PREDICTION CARD -->
+        <div id="advanceMealSection" class="space-y-3"></div>
+
         <div class="bg-white border rounded-2xl p-4 space-y-3 shadow-sm" id="mealEntryCard">
             <div class="flex justify-between items-center">
                 <div>
@@ -380,10 +425,12 @@
         meals: {},
         costs: [],
         logs: [],
-        monthlyBackups: {}
+        monthlyBackups: {},
+        advanceMeals: {}
     };
 
     if (!state.monthlyBackups) state.monthlyBackups = {};
+    if (!state.advanceMeals) state.advanceMeals = {};
     if (!state.adminPin) state.adminPin = "@nokib";
     // Always use the configured default URL if state url is missing
     if (!state.googleDriveUrl || state.googleDriveUrl !== DEFAULT_GOOGLE_SCRIPT_URL) {
@@ -648,6 +695,672 @@
 
     function closeUserActivityModal() {
       document.getElementById('userActivityModal').classList.add('hidden');
+    }
+
+    // -------------------------------------------------------------
+    // DIGITAL BILL SLIP / VOUCHER GENERATOR
+    // -------------------------------------------------------------
+    let activeVoucherData = null;
+
+    function getVoucherData(memberId, month) {
+      const member = state.members.find(m => m.id == memberId);
+      if (!member) return null;
+
+      let totalMeals = 0;
+      let totalCost = 0;
+      let mMeals = 0;
+      let mPaid = 0;
+
+      state.members.forEach(m => {
+        let meals = 0;
+        Object.keys(state.meals).forEach(d => {
+          if (d.startsWith(month)) meals += (state.meals[d][m.id] || 0);
+        });
+        let paid = 0;
+        state.costs.forEach(c => {
+          if (c.date.startsWith(month) && c.memberId == m.id) paid += c.amount;
+        });
+        totalMeals += meals;
+        totalCost += paid;
+        if (m.id == memberId) {
+          mMeals = meals;
+          mPaid = paid;
+        }
+      });
+
+      state.costs.forEach(c => {
+        if (c.date.startsWith(month) && c.memberId === 'mess_fund') {
+          totalCost += c.amount;
+        }
+      });
+
+      const rate = totalMeals > 0 ? (totalCost / totalMeals) : 0;
+      const expense = mMeals * rate;
+      const balance = mPaid - expense;
+
+      let monthFormatted = month;
+      try {
+        const [y, m] = month.split('-');
+        monthFormatted = new Date(parseInt(y), parseInt(m) - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+      } catch(e) {}
+
+      return {
+        member,
+        month,
+        monthFormatted,
+        mMeals,
+        mPaid,
+        rate,
+        expense,
+        balance,
+        totalMeals,
+        totalCost,
+        dateStr: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+      };
+    }
+
+    function openVoucherModal(memberId) {
+      const month = document.getElementById('monthSelect').value;
+      const data = getVoucherData(memberId, month);
+      if (!data) return alert("Member record not found!");
+
+      activeVoucherData = data;
+      renderVoucherPreview(data);
+      document.getElementById('voucherModal').classList.remove('hidden');
+    }
+
+    function openVoucherForCurrentUser() {
+      if (!state.currentUser) return alert("Please login first.");
+      if (state.currentUser.role === 'admin') {
+        if (state.members.length > 0) openVoucherModal(state.members[0].id);
+        else alert("No members added yet in the system.");
+      } else {
+        openVoucherModal(state.currentUser.id);
+      }
+    }
+
+    function closeVoucherModal() {
+      document.getElementById('voucherModal').classList.add('hidden');
+      activeVoucherData = null;
+    }
+
+    function renderVoucherPreview(d) {
+      const container = document.getElementById('voucherSlipContent');
+      if (!container) return;
+
+      const isRefund = d.balance >= 0;
+
+      container.innerHTML = `
+        <div class="border border-slate-200 rounded-2xl p-4 bg-white text-xs space-y-3 shadow-inner">
+          <!-- Slip Header -->
+          <div class="flex justify-between items-start border-b pb-2.5">
+            <div>
+              <div class="flex items-center gap-1">
+                <span class="text-sm">🍽️</span>
+                <span class="font-bold text-xs uppercase tracking-wide text-slate-900">Meal Tracker Pro</span>
+              </div>
+              <span class="text-[10px] text-slate-400 font-semibold block">Monthly Bill & Statement</span>
+            </div>
+            <span class="text-[10px] font-bold bg-slate-900 text-white px-2 py-0.5 rounded-lg">
+              ${d.monthFormatted}
+            </span>
+          </div>
+
+          <!-- Member Info Box -->
+          <div class="bg-slate-50 p-2.5 rounded-xl flex justify-between items-center text-xs">
+            <div>
+              <span class="text-[10px] text-slate-400 uppercase font-bold block">Member Name</span>
+              <b class="text-sm text-slate-800">${d.member.name}</b>
+              <span class="text-[10px] text-slate-400 block font-mono">${d.member.phone || 'No mobile'}</span>
+            </div>
+            <div class="text-right">
+              <span class="text-[10px] text-slate-400 uppercase font-bold block">Date</span>
+              <span class="font-mono text-xs font-semibold text-slate-700">${d.dateStr}</span>
+            </div>
+          </div>
+
+          <!-- Financial Table -->
+          <div class="border rounded-xl overflow-hidden divide-y text-xs">
+            <div class="p-2 flex justify-between items-center bg-slate-50/50">
+              <span class="text-slate-600">Total Meals (মোট মিল)</span>
+              <b class="font-mono text-slate-800">${d.mMeals}</b>
+            </div>
+            <div class="p-2 flex justify-between items-center bg-white">
+              <span class="text-slate-600">Meal Rate (মিল রেট)</span>
+              <b class="font-mono text-slate-800">৳ ${d.rate.toFixed(2)}</b>
+            </div>
+            <div class="p-2 flex justify-between items-center bg-slate-50/50">
+              <span class="text-slate-600">Total Meal Cost (মিল বাবদ খরচ)</span>
+              <b class="font-mono text-slate-800">৳ ${d.expense.toFixed(2)}</b>
+            </div>
+            <div class="p-2 flex justify-between items-center bg-white">
+              <span class="text-slate-600">Total Paid / Bazar (মোট জমা/বাজার)</span>
+              <b class="font-mono text-slate-800">৳ ${d.mPaid.toFixed(2)}</b>
+            </div>
+          </div>
+
+          <!-- Net Balance Highlight Box -->
+          <div class="p-3 rounded-xl border text-center ${isRefund ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}">
+            <span class="text-[10px] font-bold uppercase block ${isRefund ? 'text-green-700' : 'text-red-700'}">
+              ${isRefund ? 'REFUND / COLLECT (টাকা ফেরত পাবে)' : 'PAYABLE / DUE (বকেয়া পরিশোধ করতে হবে)'}
+            </span>
+            <div class="text-2xl font-mono font-bold mt-0.5 ${isRefund ? 'text-green-700' : 'text-red-700'}">
+              ৳ ${Math.abs(d.balance).toFixed(2)}
+            </div>
+          </div>
+
+          <!-- Mess Overall Footnote -->
+          <div class="text-[10px] text-slate-400 text-center pt-1 border-t">
+            Mess Total: ৳ ${d.totalCost.toFixed(2)} Bazar • ${d.totalMeals} Meals • Active Members: ${state.members.length}
+          </div>
+        </div>
+      `;
+    }
+
+    function drawCanvasRoundRect(ctx, x, y, w, h, r) {
+      if (typeof ctx.roundRect === 'function') {
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, r);
+      } else {
+        if (w < 2 * r) r = w / 2;
+        if (h < 2 * r) r = h / 2;
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+      }
+    }
+
+    function generateVoucherCanvas(d) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 640;
+      canvas.height = 840;
+      const ctx = canvas.getContext('2d');
+
+      // White background
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Outer border
+      ctx.strokeStyle = '#E2E8F0';
+      ctx.lineWidth = 3;
+      drawCanvasRoundRect(ctx, 8, 8, canvas.width - 16, canvas.height - 16, 16);
+      ctx.stroke();
+
+      // Top Header Banner
+      ctx.fillStyle = '#0F172A';
+      ctx.fillRect(8, 8, canvas.width - 16, 92);
+
+      // Header Text
+      ctx.fillStyle = '#38BDF8';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.fillText('MEAL TRACKER PRO', 32, 42);
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.fillText('MONTHLY BILL STATEMENT', 32, 72);
+
+      // Month Pill on top right
+      ctx.fillStyle = '#1E293B';
+      drawCanvasRoundRect(ctx, canvas.width - 200, 32, 170, 38, 10);
+      ctx.fill();
+      ctx.fillStyle = '#38BDF8';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(d.monthFormatted.toUpperCase(), canvas.width - 115, 56);
+      ctx.textAlign = 'left';
+
+      // Member Info Card (y: 118)
+      ctx.fillStyle = '#F8FAFC';
+      drawCanvasRoundRect(ctx, 25, 118, canvas.width - 50, 75, 12);
+      ctx.fill();
+      ctx.strokeStyle = '#E2E8F0';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Member Name
+      ctx.fillStyle = '#64748B';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.fillText('MEMBER NAME', 42, 142);
+      ctx.fillStyle = '#0F172A';
+      ctx.font = 'bold 18px sans-serif';
+      ctx.fillText(d.member.name, 42, 168);
+      if (d.member.phone) {
+        ctx.fillStyle = '#64748B';
+        ctx.font = '12px sans-serif';
+        ctx.fillText('(' + d.member.phone + ')', 42 + ctx.measureText(d.member.name).width + 8, 168);
+      }
+
+      // Date on right
+      ctx.fillStyle = '#64748B';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('STATEMENT DATE', canvas.width - 45, 142);
+      ctx.fillStyle = '#334155';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.fillText(d.dateStr, canvas.width - 45, 168);
+      ctx.textAlign = 'left';
+
+      // Table Container (y: 210)
+      const tableY = 210;
+      const tableH = 240;
+      ctx.fillStyle = '#FFFFFF';
+      drawCanvasRoundRect(ctx, 25, tableY, canvas.width - 50, tableH, 12);
+      ctx.fill();
+      ctx.strokeStyle = '#E2E8F0';
+      ctx.stroke();
+
+      const rows = [
+        { label: 'Total Meals Consumed (মোট মিল)', value: d.mMeals + ' meals' },
+        { label: 'Meal Rate (মিল রেট)', value: 'Tk. ' + d.rate.toFixed(2) },
+        { label: 'Total Meal Cost (মিল বাবদ খরচ)', value: 'Tk. ' + d.expense.toFixed(2) },
+        { label: 'Total Amount Paid / Bazar (মোট বাজার খরচ/জমা)', value: 'Tk. ' + d.mPaid.toFixed(2) }
+      ];
+
+      rows.forEach((r, idx) => {
+        const ry = tableY + (idx * 60);
+        if (idx % 2 === 0) {
+          ctx.fillStyle = '#F8FAFC';
+          ctx.fillRect(26, ry + 1, canvas.width - 52, 58);
+        }
+        if (idx > 0) {
+          ctx.strokeStyle = '#F1F5F9';
+          ctx.beginPath();
+          ctx.moveTo(26, ry);
+          ctx.lineTo(canvas.width - 26, ry);
+          ctx.stroke();
+        }
+        ctx.fillStyle = '#334155';
+        ctx.font = '13px sans-serif';
+        ctx.fillText(r.label, 42, ry + 36);
+
+        ctx.fillStyle = '#0F172A';
+        ctx.font = 'bold 15px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(r.value, canvas.width - 45, ry + 36);
+        ctx.textAlign = 'left';
+      });
+
+      // Net Balance Box (y: 470)
+      const balY = 470;
+      const balH = 115;
+      const isRefund = d.balance >= 0;
+
+      ctx.fillStyle = isRefund ? '#ECFDF5' : '#FEF2F2';
+      drawCanvasRoundRect(ctx, 25, balY, canvas.width - 50, balH, 14);
+      ctx.fill();
+      ctx.strokeStyle = isRefund ? '#6EE7B7' : '#FCA5A5';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.fillStyle = isRefund ? '#065F46' : '#991B1B';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.fillText(isRefund ? 'NET BALANCE: REFUND / COLLECT (টাকা ফেরত পাবে)' : 'NET BALANCE: PAYABLE / DUE (বকেয়া পরিশোধ করতে হবে)', 42, balY + 34);
+
+      ctx.fillStyle = isRefund ? '#047857' : '#DC2626';
+      ctx.font = 'bold 34px sans-serif';
+      ctx.fillText('Tk. ' + Math.abs(d.balance).toFixed(2), 42, balY + 82);
+
+      // Mess Overview Summary Bar (y: 605)
+      ctx.fillStyle = '#F1F5F9';
+      drawCanvasRoundRect(ctx, 25, 605, canvas.width - 50, 70, 10);
+      ctx.fill();
+
+      ctx.fillStyle = '#475569';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillText('MESS SUMMARY STATS', 42, 630);
+      ctx.fillStyle = '#334155';
+      ctx.font = '12px sans-serif';
+      ctx.fillText(`Total Mess Bazar: Tk. ${d.totalCost.toFixed(2)}  •  Total Meals: ${d.totalMeals}  •  Rate: Tk. ${d.rate.toFixed(2)}`, 42, 655);
+
+      // Footer (y: 700 to 820)
+      ctx.strokeStyle = '#E2E8F0';
+      ctx.beginPath();
+      ctx.moveTo(35, 705);
+      ctx.lineTo(canvas.width - 35, 705);
+      ctx.stroke();
+
+      ctx.fillStyle = '#64748B';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.fillText('Meal Tracker Pro', 42, 735);
+      ctx.fillStyle = '#94A3B8';
+      ctx.font = '11px sans-serif';
+      ctx.fillText('Digital Mess Management System • System Verified Statement', 42, 755);
+      ctx.fillText(`Generated on ${new Date().toLocaleString()}`, 42, 775);
+
+      return canvas;
+    }
+
+    function downloadVoucherImage() {
+      if (!activeVoucherData) return;
+      const d = activeVoucherData;
+      const canvas = generateVoucherCanvas(d);
+      const a = document.createElement('a');
+      const safeName = d.member.name.replace(/[^a-zA-Z0-9]/g, '_');
+      a.download = `MealSlip_${safeName}_${d.month}.png`;
+      a.href = canvas.toDataURL('image/png');
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    function getVoucherShareText(d) {
+      const isRefund = d.balance >= 0;
+      const statusLine = isRefund 
+        ? `✅ *REFUND / COLLECT (ফেরত পাবে): ৳ ${d.balance.toFixed(2)}*`
+        : `⚠️ *PAYABLE / DUE (বাকি পরিশোধ করতে হবে): ৳ ${Math.abs(d.balance).toFixed(2)}*`;
+      
+      const appUrl = window.location.href.split('#')[0];
+      return `🍽️ *Meal Tracker Pro - Monthly Bill Slip*\n━━━━━━━━━━━━━━━━━━\n👤 *Member:* ${d.member.name}\n📱 *Mobile:* ${d.member.phone || 'N/A'}\n📅 *Month:* ${d.monthFormatted}\n━━━━━━━━━━━━━━━━━━\n🍽️ *Total Meals:* ${d.mMeals}\n🏷️ *Meal Rate:* ৳ ${d.rate.toFixed(2)}\n💸 *Meal Cost:* ৳ ${d.expense.toFixed(2)}\n💰 *Total Paid:* ৳ ${d.mPaid.toFixed(2)}\n━━━━━━━━━━━━━━━━━━\n${statusLine}\n━━━━━━━━━━━━━━━━━━\n📊 *Mess Total:* ৳ ${d.totalCost.toFixed(2)} (${d.totalMeals} meals)\n🔗 *App Link:* ${appUrl}\n\n_Auto-generated bill voucher from Meal Tracker Pro_`;
+    }
+
+    function shareVoucherWhatsApp() {
+      if (!activeVoucherData) return;
+      const d = activeVoucherData;
+      const text = getVoucherShareText(d);
+      let clean = (d.member.phone || '').replace(/[^0-9]/g, '');
+      if (clean.startsWith('01')) clean = '88' + clean;
+      const url = clean 
+        ? `https://api.whatsapp.com/send?phone=${clean}&text=${encodeURIComponent(text)}`
+        : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+      window.open(url, '_blank');
+    }
+
+    function copyVoucherText() {
+      if (!activeVoucherData) return;
+      const text = getVoucherShareText(activeVoucherData);
+      navigator.clipboard.writeText(text).then(() => {
+        alert("Voucher slip details copied to clipboard!");
+      }).catch(() => {
+        alert("Failed to copy to clipboard.");
+      });
+    }
+
+    // -------------------------------------------------------------
+    // ADVANCE MEAL NOTICE & TOGGLE (TOMORROW'S MEAL)
+    // -------------------------------------------------------------
+    window.tempSelectedAdvCount = undefined;
+
+    function getTomorrowDateStr() {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      return d.toISOString().split('T')[0];
+    }
+
+    function formatDateNice(dateStr) {
+      if (!dateStr) return '';
+      try {
+        const [y, m, d] = dateStr.split('-');
+        const dt = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+        return dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+      } catch(e) {
+        return dateStr;
+      }
+    }
+
+    function setAdvCountTemp(val) {
+      window.tempSelectedAdvCount = val;
+      [0, 1, 2, 3].forEach(n => {
+        const btn = document.getElementById(`advBtn-${n}`);
+        if (btn) {
+          if (n === val) {
+            if (n === 0) {
+              btn.className = "py-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center bg-red-500 text-white border-red-600 ring-2 ring-red-300";
+            } else {
+              btn.className = "py-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center bg-green-600 text-white border-green-700 ring-2 ring-green-300";
+            }
+          } else {
+            btn.className = "py-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200";
+          }
+        }
+      });
+    }
+
+    function saveMemberAdvanceMeal() {
+      if (!state.currentUser || state.currentUser.role !== 'member') {
+        return alert("Only logged in members can set advance meal preferences.");
+      }
+      const myId = state.currentUser.id;
+      const tomorrowStr = getTomorrowDateStr();
+      const count = (window.tempSelectedAdvCount !== undefined) ? window.tempSelectedAdvCount : 1;
+      const noteInput = document.getElementById('advMealNoteInput');
+      const note = noteInput ? noteInput.value.trim() : '';
+
+      state.advanceMeals = state.advanceMeals || {};
+      if (!state.advanceMeals[tomorrowStr]) state.advanceMeals[tomorrowStr] = {};
+
+      state.advanceMeals[tomorrowStr][myId] = {
+        count: count,
+        status: count === 0 ? 'off' : 'on',
+        note: note,
+        updatedAt: new Date().toLocaleTimeString(),
+        userName: state.currentUser.name
+      };
+
+      // Also sync into state.meals[tomorrowStr]
+      if (!state.meals[tomorrowStr]) state.meals[tomorrowStr] = {};
+      state.meals[tomorrowStr][myId] = count;
+
+      addLog(
+        `Member ${state.currentUser.name} set tomorrow's meal (${tomorrowStr}): ${count} [${count === 0 ? 'OFF' : 'ON'}]${note ? ` - "${note}"` : ''}`,
+        'advance_meal',
+        { memberId: myId, date: tomorrowStr, count, note }
+      );
+
+      save();
+      alert(`আগামীকালের মিল সফলভাবে সেভ হয়েছে!\nতারিখ: ${formatDateNice(tomorrowStr)}\nস্ট্যাটাস: ${count === 0 ? '🔴 OFF (০ মিল)' : `🟢 ON (${count} মিল)`}${note ? `\nনোট: ${note}` : ''}`);
+    }
+
+    function applyAdvanceMealsToTomorrow() {
+      const tomorrowStr = getTomorrowDateStr();
+      document.getElementById('mealDate').value = tomorrowStr;
+
+      state.advanceMeals = state.advanceMeals || {};
+      const tomorrowAdv = state.advanceMeals[tomorrowStr] || {};
+      if (!state.meals[tomorrowStr]) state.meals[tomorrowStr] = {};
+
+      Object.keys(tomorrowAdv).forEach(mid => {
+        state.meals[tomorrowStr][mid] = tomorrowAdv[mid].count;
+      });
+
+      save();
+
+      const card = document.getElementById('mealEntryCard');
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.classList.add('ring-2', 'ring-blue-500');
+        setTimeout(() => card.classList.remove('ring-2', 'ring-blue-500'), 1500);
+      }
+    }
+
+    function renderAdvanceMealSection() {
+      const container = document.getElementById('advanceMealSection');
+      if (!container) return;
+      const role = state.currentUser ? state.currentUser.role : 'member';
+      const tomorrowStr = getTomorrowDateStr();
+      const tomorrowFormatted = formatDateNice(tomorrowStr);
+
+      state.advanceMeals = state.advanceMeals || {};
+      if (!state.advanceMeals[tomorrowStr]) state.advanceMeals[tomorrowStr] = {};
+      const tomorrowAdv = state.advanceMeals[tomorrowStr];
+
+      if (role === 'member') {
+        const myId = state.currentUser ? state.currentUser.id : null;
+        if (!myId) {
+          container.innerHTML = '';
+          return;
+        }
+
+        const myAdv = tomorrowAdv[myId];
+        const currentCount = myAdv !== undefined ? myAdv.count : (state.meals[tomorrowStr] && state.meals[tomorrowStr][myId] !== undefined ? state.meals[tomorrowStr][myId] : null);
+        const currentNote = myAdv ? (myAdv.note || '') : '';
+
+        let statusText = '';
+        let statusBadge = '';
+        if (currentCount === 0) {
+          statusBadge = `<span class="bg-red-100 text-red-700 text-xs font-bold px-2.5 py-1 rounded-lg">🔴 OFF (০ মিল)</span>`;
+          statusText = 'আপনি কালকে মিল খাবেন না (OFF) হিসেবে সেভ করা আছে।';
+        } else if (currentCount > 0) {
+          statusBadge = `<span class="bg-green-100 text-green-700 text-xs font-bold px-2.5 py-1 rounded-lg">🟢 ON (${currentCount} মিল)</span>`;
+          statusText = `আপনি কালকে ${currentCount} টি মিল খাবেন হিসেবে সেভ করা আছে।`;
+        } else {
+          statusBadge = `<span class="bg-slate-100 text-slate-600 text-xs font-bold px-2.5 py-1 rounded-lg">⚪ Not Set Yet</span>`;
+          statusText = 'এখনো কোনো অপশন সিলেক্ট করেননি (ডিফল্ট ১ মিল ধরা হতে পারে)।';
+        }
+
+        const activeCount = (window.tempSelectedAdvCount !== undefined) ? window.tempSelectedAdvCount : (currentCount !== null ? currentCount : 1);
+
+        container.innerHTML = `
+          <div class="bg-white border rounded-2xl p-4 space-y-3 shadow-sm border-blue-100">
+            <div class="flex justify-between items-start">
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-base">📢</span>
+                  <h3 class="text-xs font-bold uppercase text-slate-800">আগামীকালের মিল নোটিস (Advance Notice)</h3>
+                </div>
+                <p class="text-[10px] text-slate-400 mt-0.5">কালকে খাবেন কি খাবেন না আগে থেকেই ম্যানেজারকে জানিয়ে দিন</p>
+              </div>
+              <span class="text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-lg shrink-0">
+                📅 ${tomorrowFormatted}
+              </span>
+            </div>
+
+            <div class="p-2.5 bg-slate-50 border rounded-xl flex justify-between items-center text-xs">
+              <div class="text-[11px] text-slate-600">
+                <span class="font-semibold block text-slate-700">বর্তমান স্ট্যাটাস:</span>
+                ${statusText} ${currentNote ? `<span class="block text-slate-400 italic font-mono text-[10px]">"${currentNote}"</span>` : ''}
+              </div>
+              ${statusBadge}
+            </div>
+
+            <div>
+              <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">কালকে কয়টি মিল খাবেন?</label>
+              <div class="grid grid-cols-4 gap-1.5">
+                <button type="button" onclick="setAdvCountTemp(0)" id="advBtn-0" class="py-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center ${activeCount === 0 ? 'bg-red-500 text-white border-red-600 ring-2 ring-red-300' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'}">
+                  <span class="text-sm">🔴</span>
+                  <span>০ (OFF)</span>
+                </button>
+                <button type="button" onclick="setAdvCountTemp(1)" id="advBtn-1" class="py-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center ${activeCount === 1 ? 'bg-green-600 text-white border-green-700 ring-2 ring-green-300' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'}">
+                  <span class="text-sm">🟢</span>
+                  <span>১ মিল</span>
+                </button>
+                <button type="button" onclick="setAdvCountTemp(2)" id="advBtn-2" class="py-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center ${activeCount === 2 ? 'bg-green-600 text-white border-green-700 ring-2 ring-green-300' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'}">
+                  <span class="text-sm">🟢</span>
+                  <span>২ মিল</span>
+                </button>
+                <button type="button" onclick="setAdvCountTemp(3)" id="advBtn-3" class="py-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center ${activeCount === 3 ? 'bg-green-600 text-white border-green-700 ring-2 ring-green-300' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'}">
+                  <span class="text-sm">🟢</span>
+                  <span>৩ মিল</span>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <input type="text" id="advMealNoteInput" value="${currentNote}" placeholder="নোট (ঐচ্ছিক: উদাঃ বাড়ি যাবো / শুধু রাতে খাবো)" class="w-full p-2.5 border rounded-xl text-xs bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            </div>
+
+            <button type="button" onclick="saveMemberAdvanceMeal()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5">
+              <span>💾</span> আগামীকালের মিল সেভ করুন (${tomorrowFormatted})
+            </button>
+          </div>
+        `;
+      } else {
+        // ADMIN VIEW
+        let totalExpected = 0;
+        let onCount = 0;
+        let offCount = 0;
+
+        const chips = state.members.map(m => {
+          const adv = tomorrowAdv[m.id];
+          let count = null;
+          let note = '';
+          if (adv !== undefined) {
+            count = adv.count;
+            note = adv.note || '';
+          } else if (state.meals[tomorrowStr] && state.meals[tomorrowStr][m.id] !== undefined) {
+            count = state.meals[tomorrowStr][m.id];
+          }
+
+          if (count === null) {
+            totalExpected += 1;
+            return `
+              <div class="p-2 border rounded-xl bg-slate-50 flex justify-between items-center text-xs">
+                <span class="font-bold text-slate-700">${m.name}</span>
+                <span class="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded font-mono">Not set (def: 1)</span>
+              </div>
+            `;
+          } else if (count === 0) {
+            offCount++;
+            return `
+              <div class="p-2 border border-red-200 rounded-xl bg-red-50 flex justify-between items-center text-xs">
+                <div>
+                  <span class="font-bold text-red-900">${m.name}</span>
+                  ${note ? `<span class="block text-[10px] text-red-600 italic">"${note}"</span>` : ''}
+                </div>
+                <span class="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded">🔴 OFF (০)</span>
+              </div>
+            `;
+          } else {
+            onCount++;
+            totalExpected += count;
+            return `
+              <div class="p-2 border border-green-200 rounded-xl bg-green-50 flex justify-between items-center text-xs">
+                <div>
+                  <span class="font-bold text-green-900">${m.name}</span>
+                  ${note ? `<span class="block text-[10px] text-green-700 italic">"${note}"</span>` : ''}
+                </div>
+                <span class="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded">🟢 ON (${count})</span>
+              </div>
+            `;
+          }
+        }).join('');
+
+        container.innerHTML = `
+          <div class="bg-gradient-to-br from-blue-50/60 to-indigo-50/60 border border-blue-200 rounded-2xl p-4 space-y-3 shadow-xs">
+            <div class="flex justify-between items-start">
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-base">📢</span>
+                  <h3 class="text-xs font-bold uppercase text-slate-900">আগামীকালের মিল পূর্বাভাস (Tomorrow: ${tomorrowFormatted})</h3>
+                </div>
+                <p class="text-[10px] text-slate-500 mt-0.5">মেম্বারদের অন/অফ নোটিসের ভিত্তিতে সম্ভাব্য মিল ও বাজার হিসাব</p>
+              </div>
+              <span class="text-xs font-bold bg-blue-600 text-white px-2.5 py-1 rounded-xl shadow-xs shrink-0">
+                সম্ভাব্য মিল: ${totalExpected} টি
+              </span>
+            </div>
+
+            <!-- Status summary pills -->
+            <div class="grid grid-cols-3 gap-2 text-center text-xs">
+              <div class="bg-white p-2 rounded-xl border border-blue-100">
+                <span class="text-[10px] text-slate-400 block font-semibold">সম্ভাব্য মিল</span>
+                <b class="text-base text-blue-600 font-mono">${totalExpected}</b>
+              </div>
+              <div class="bg-white p-2 rounded-xl border border-green-100">
+                <span class="text-[10px] text-green-600 block font-semibold">অন (খাবেন)</span>
+                <b class="text-base text-green-600 font-mono">${onCount} জন</b>
+              </div>
+              <div class="bg-white p-2 rounded-xl border border-red-100">
+                <span class="text-[10px] text-red-600 block font-semibold">অফ (খাবেন না)</span>
+                <b class="text-base text-red-600 font-mono">${offCount} জন</b>
+              </div>
+            </div>
+
+            <!-- Member List Preview -->
+            <div class="space-y-1.5 max-h-48 overflow-y-auto pt-1">
+              ${chips}
+            </div>
+
+            <!-- Load into tomorrow sheet -->
+            <button type="button" onclick="applyAdvanceMealsToTomorrow()" class="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5">
+              <span>👉</span> আগামীকালের এন্ট্রি শিট ওপেন করুন (${tomorrowStr})
+            </button>
+          </div>
+        `;
+      }
     }
 
     // -------------------------------------------------------------
@@ -1195,20 +1908,26 @@
           personalView.classList.add('hidden');
         }
 
-        // Summary List (Original design)
+        // Render Advance Meal Notice (Tomorrow)
+        renderAdvanceMealSection();
+
+        // Summary List (With Bill Slip button)
         document.getElementById('summaryList').innerHTML = memberStats.map(m => {
             const expense = m.mMeals * rate;
             const balance = m.mPaid - expense;
             return `
-                <div class="p-3 border rounded-xl bg-slate-50 flex justify-between items-center">
-                    <div>
-                        <div class="font-bold text-sm">${m.name} <span class="text-[10px] text-slate-400 font-normal">${m.phone || ''}</span></div>
+                <div class="p-3 border rounded-xl bg-slate-50 flex justify-between items-center gap-2">
+                    <div class="min-w-0">
+                        <div class="font-bold text-sm truncate">${m.name} <span class="text-[10px] text-slate-400 font-normal">${m.phone || ''}</span></div>
                         <div class="text-[10px] text-slate-500">Meals: ${m.mMeals} | Paid: ${m.mPaid.toFixed(2)}</div>
                     </div>
-                    <div class="text-right">
+                    <div class="text-right shrink-0 flex flex-col items-end gap-1">
                         <div class="text-xs font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}">
                             ${balance >= 0 ? 'Collect' : 'Due'}: ${Math.abs(balance).toFixed(2)}
                         </div>
+                        <button type="button" onclick="openVoucherModal(${m.id})" class="text-[11px] bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded-lg font-bold flex items-center gap-1 shadow-2xs transition" title="View & Download Bill Slip">
+                          <span>🧾</span> Slip
+                        </button>
                     </div>
                 </div>
             `;
@@ -1247,13 +1966,24 @@
                 <option value="${num}" ${currentVal == num ? 'selected' : ''}>${num}</option>
             `).join('');
 
+            const adv = (state.advanceMeals && state.advanceMeals[curDate]) ? state.advanceMeals[curDate][m.id] : null;
+            let advBadge = '';
+            if (adv) {
+              if (adv.count === 0) {
+                advBadge = `<span class="text-[9px] bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded block mt-0.5">📢 Advance: OFF (0)${adv.note ? ` - ${adv.note}` : ''}</span>`;
+              } else {
+                advBadge = `<span class="text-[9px] bg-green-100 text-green-700 font-bold px-1.5 py-0.5 rounded block mt-0.5">📢 Advance: ${adv.count} Meal(s)${adv.note ? ` - ${adv.note}` : ''}</span>`;
+              }
+            }
+
             return `
-                <div class="flex items-center justify-between p-2.5 border rounded-xl bg-slate-50">
-                    <div>
-                      <span class="text-xs font-bold text-slate-800">${m.name}</span>
+                <div class="flex items-center justify-between p-2.5 border rounded-xl bg-slate-50 gap-2">
+                    <div class="min-w-0">
+                      <span class="text-xs font-bold text-slate-800 block truncate">${m.name}</span>
                       ${role === 'member' ? '<span class="text-[10px] text-green-600 font-semibold block">(Your Meal)</span>' : ''}
+                      ${advBadge}
                     </div>
-                    <select id="in-m-${m.id}" class="w-24 p-2 border rounded-lg text-xs font-bold bg-white text-center text-slate-800 focus:outline-none focus:border-blue-500">
+                    <select id="in-m-${m.id}" class="w-24 p-2 border rounded-lg text-xs font-bold bg-white text-center text-slate-800 focus:outline-none focus:border-blue-500 shrink-0">
                         ${options}
                     </select>
                 </div>
