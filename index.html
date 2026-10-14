@@ -426,11 +426,11 @@
         costs: [],
         logs: [],
         monthlyBackups: {},
-        advanceMeals: {}
+        mealOffNotices: []
     };
 
     if (!state.monthlyBackups) state.monthlyBackups = {};
-    if (!state.advanceMeals) state.advanceMeals = {};
+    if (!state.mealOffNotices) state.mealOffNotices = [];
     if (!state.adminPin) state.adminPin = "@nokib";
     // Always use the configured default URL if state url is missing
     if (!state.googleDriveUrl || state.googleDriveUrl !== DEFAULT_GOOGLE_SCRIPT_URL) {
@@ -1080,16 +1080,8 @@
     }
 
     // -------------------------------------------------------------
-    // ADVANCE MEAL NOTICE & TOGGLE (TOMORROW'S MEAL)
+    // MEAL OFF NOTICE (বন্ধের তারিখ ও পুনরায় চালু হওয়ার নোটিশ)
     // -------------------------------------------------------------
-    window.tempSelectedAdvCount = undefined;
-
-    function getTomorrowDateStr() {
-      const d = new Date();
-      d.setDate(d.getDate() + 1);
-      return d.toISOString().split('T')[0];
-    }
-
     function formatDateNice(dateStr) {
       if (!dateStr) return '';
       try {
@@ -1101,91 +1093,91 @@
       }
     }
 
-    function setAdvCountTemp(val) {
-      window.tempSelectedAdvCount = val;
-      [0, 1, 2, 3].forEach(n => {
-        const btn = document.getElementById(`advBtn-${n}`);
-        if (btn) {
-          if (n === val) {
-            if (n === 0) {
-              btn.className = "py-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center bg-red-500 text-white border-red-600 ring-2 ring-red-300";
-            } else {
-              btn.className = "py-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center bg-green-600 text-white border-green-700 ring-2 ring-green-300";
-            }
-          } else {
-            btn.className = "py-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200";
-          }
-        }
-      });
+    function isMemberMealOffOnDate(memberId, dateStr) {
+      if (!state.mealOffNotices || !Array.isArray(state.mealOffNotices)) return null;
+      return state.mealOffNotices.find(n => {
+        if (n.status === 'cancelled') return false;
+        if (n.memberId != memberId) return false;
+        // Off from fromDate up to before resumeDate
+        return (dateStr >= n.fromDate && dateStr < n.resumeDate);
+      }) || null;
     }
 
-    function saveMemberAdvanceMeal() {
+    function submitMealOffNotice() {
       if (!state.currentUser || state.currentUser.role !== 'member') {
-        return alert("Only logged in members can set advance meal preferences.");
+        return alert("Only logged in members can submit meal off notices.");
       }
-      const myId = state.currentUser.id;
-      const tomorrowStr = getTomorrowDateStr();
-      const count = (window.tempSelectedAdvCount !== undefined) ? window.tempSelectedAdvCount : 1;
-      const noteInput = document.getElementById('advMealNoteInput');
-      const note = noteInput ? noteInput.value.trim() : '';
+      const fromDate = document.getElementById('offFromDate')?.value;
+      const resumeDate = document.getElementById('offResumeDate')?.value;
+      const note = document.getElementById('offNoteInput')?.value.trim() || '';
 
-      state.advanceMeals = state.advanceMeals || {};
-      if (!state.advanceMeals[tomorrowStr]) state.advanceMeals[tomorrowStr] = {};
+      if (!fromDate) return alert("Please select the date from which your meal will be closed.");
+      if (!resumeDate) return alert("Please select the date when your meal will resume.");
+      if (resumeDate <= fromDate) {
+        return alert("চালু হওয়ার তারিখ (Resume date) বন্ধের তারিখ (From date) এর পরের তারিখ হতে হবে।");
+      }
 
-      state.advanceMeals[tomorrowStr][myId] = {
-        count: count,
-        status: count === 0 ? 'off' : 'on',
+      state.mealOffNotices = state.mealOffNotices || [];
+      const newNotice = {
+        id: Date.now(),
+        memberId: state.currentUser.id,
+        memberName: state.currentUser.name,
+        fromDate: fromDate,
+        resumeDate: resumeDate,
         note: note,
-        updatedAt: new Date().toLocaleTimeString(),
-        userName: state.currentUser.name
+        createdAt: new Date().toLocaleString(),
+        status: 'active'
       };
 
-      // Also sync into state.meals[tomorrowStr]
-      if (!state.meals[tomorrowStr]) state.meals[tomorrowStr] = {};
-      state.meals[tomorrowStr][myId] = count;
+      state.mealOffNotices.push(newNotice);
+
+      // Pre-fill 0 meals for dates in this range in state.meals
+      let cur = new Date(fromDate);
+      const end = new Date(resumeDate);
+      while (cur < end) {
+        const dStr = cur.toISOString().split('T')[0];
+        if (!state.meals[dStr]) state.meals[dStr] = {};
+        if (state.meals[dStr][state.currentUser.id] === undefined) {
+          state.meals[dStr][state.currentUser.id] = 0;
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
 
       addLog(
-        `Member ${state.currentUser.name} set tomorrow's meal (${tomorrowStr}): ${count} [${count === 0 ? 'OFF' : 'ON'}]${note ? ` - "${note}"` : ''}`,
-        'advance_meal',
-        { memberId: myId, date: tomorrowStr, count, note }
+        `Member ${state.currentUser.name} submitted meal OFF notice: ${fromDate} to ${resumeDate}${note ? ` ("${note}")` : ''}`,
+        'meal_off',
+        { memberId: state.currentUser.id, fromDate, resumeDate, note }
       );
 
       save();
-      alert(`আগামীকালের মিল সফলভাবে সেভ হয়েছে!\nতারিখ: ${formatDateNice(tomorrowStr)}\nস্ট্যাটাস: ${count === 0 ? '🔴 OFF (০ মিল)' : `🟢 ON (${count} মিল)`}${note ? `\nনোট: ${note}` : ''}`);
+      alert(`মিল বন্ধের নোটিশ সফলভাবে জমা হয়েছে!\n\nবন্ধের শুরু: ${formatDateNice(fromDate)}\nপুনরায় চালু: ${formatDateNice(resumeDate)}${note ? `\nনোট: ${note}` : ''}`);
     }
 
-    function applyAdvanceMealsToTomorrow() {
-      const tomorrowStr = getTomorrowDateStr();
-      document.getElementById('mealDate').value = tomorrowStr;
-
-      state.advanceMeals = state.advanceMeals || {};
-      const tomorrowAdv = state.advanceMeals[tomorrowStr] || {};
-      if (!state.meals[tomorrowStr]) state.meals[tomorrowStr] = {};
-
-      Object.keys(tomorrowAdv).forEach(mid => {
-        state.meals[tomorrowStr][mid] = tomorrowAdv[mid].count;
-      });
-
+    function cancelMemberOffNotice(noticeId) {
+      if (!confirm("Are you sure you want to cancel this meal OFF notice and resume meals?")) return;
+      state.mealOffNotices = state.mealOffNotices || [];
+      const notice = state.mealOffNotices.find(n => n.id == noticeId);
+      if (!notice) return;
+      notice.status = 'cancelled';
+      addLog(`Meal OFF notice cancelled for ${notice.memberName} (${notice.fromDate} - ${notice.resumeDate})`, 'meal_off_cancel');
       save();
-
-      const card = document.getElementById('mealEntryCard');
-      if (card) {
-        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        card.classList.add('ring-2', 'ring-blue-500');
-        setTimeout(() => card.classList.remove('ring-2', 'ring-blue-500'), 1500);
-      }
+      alert("মিল বন্ধের নোটিশ বাতিল করা হয়েছে। আপনার মিল চালু হিসেবে গণ্য হবে।");
     }
 
     function renderAdvanceMealSection() {
       const container = document.getElementById('advanceMealSection');
       if (!container) return;
       const role = state.currentUser ? state.currentUser.role : 'member';
-      const tomorrowStr = getTomorrowDateStr();
-      const tomorrowFormatted = formatDateNice(tomorrowStr);
+      state.mealOffNotices = state.mealOffNotices || [];
 
-      state.advanceMeals = state.advanceMeals || {};
-      if (!state.advanceMeals[tomorrowStr]) state.advanceMeals[tomorrowStr] = {};
-      const tomorrowAdv = state.advanceMeals[tomorrowStr];
+      const todayStr = new Date().toISOString().split('T')[0];
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+      const defaultResume = new Date();
+      defaultResume.setDate(defaultResume.getDate() + 3);
+      const defaultResumeStr = defaultResume.toISOString().split('T')[0];
 
       if (role === 'member') {
         const myId = state.currentUser ? state.currentUser.id : null;
@@ -1194,172 +1186,129 @@
           return;
         }
 
-        const myAdv = tomorrowAdv[myId];
-        const currentCount = myAdv !== undefined ? myAdv.count : (state.meals[tomorrowStr] && state.meals[tomorrowStr][myId] !== undefined ? state.meals[tomorrowStr][myId] : null);
-        const currentNote = myAdv ? (myAdv.note || '') : '';
+        const myActiveNotice = state.mealOffNotices.find(n => n.memberId == myId && n.status === 'active' && n.resumeDate >= todayStr);
 
-        let statusText = '';
-        let statusBadge = '';
-        if (currentCount === 0) {
-          statusBadge = `<span class="bg-red-100 text-red-700 text-xs font-bold px-2.5 py-1 rounded-lg">🔴 OFF (০ মিল)</span>`;
-          statusText = 'আপনি কালকে মিল খাবেন না (OFF) হিসেবে সেভ করা আছে।';
-        } else if (currentCount > 0) {
-          statusBadge = `<span class="bg-green-100 text-green-700 text-xs font-bold px-2.5 py-1 rounded-lg">🟢 ON (${currentCount} মিল)</span>`;
-          statusText = `আপনি কালকে ${currentCount} টি মিল খাবেন হিসেবে সেভ করা আছে।`;
+        if (myActiveNotice) {
+          container.innerHTML = `
+            <div class="bg-red-50 border border-red-200 rounded-2xl p-4 space-y-3 shadow-xs">
+              <div class="flex justify-between items-start gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-xl">🛑</span>
+                  <div>
+                    <h3 class="font-bold text-xs uppercase text-red-900">আপনার মিল বন্ধের নোটিশ সক্রিয় আছে</h3>
+                    <p class="text-[10px] text-red-700">ম্যানেজার এই সময়সীমার মধ্যে মিল বন্ধ রাখবেন</p>
+                  </div>
+                </div>
+                <span class="text-[10px] font-bold bg-red-600 text-white px-2 py-0.5 rounded-lg shrink-0">MEAL OFF</span>
+              </div>
+
+              <div class="p-3 bg-white border border-red-100 rounded-xl space-y-1.5 text-xs">
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-500">মিল বন্ধ শুরুর তারিখ:</span>
+                  <b class="text-red-700 font-mono">${formatDateNice(myActiveNotice.fromDate)}</b>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-500">পুনরায় চালু হওয়ার তারিখ:</span>
+                  <b class="text-green-700 font-mono">${formatDateNice(myActiveNotice.resumeDate)}</b>
+                </div>
+                ${myActiveNotice.note ? `
+                  <div class="flex justify-between items-center border-t border-slate-100 pt-1.5">
+                    <span class="text-slate-500">কারণ / নোট:</span>
+                    <span class="text-slate-800 italic">"${myActiveNotice.note}"</span>
+                  </div>
+                ` : ''}
+              </div>
+
+              <button type="button" onclick="cancelMemberOffNotice(${myActiveNotice.id})" class="w-full bg-white hover:bg-red-100 text-red-600 border border-red-300 py-2.5 rounded-xl font-bold text-xs transition shadow-2xs flex items-center justify-center gap-1.5">
+                <span>🟢</span> আগে চলে আসলে মিল চালু করুন (Cancel Notice & Resume)
+              </button>
+            </div>
+          `;
         } else {
-          statusBadge = `<span class="bg-slate-100 text-slate-600 text-xs font-bold px-2.5 py-1 rounded-lg">⚪ Not Set Yet</span>`;
-          statusText = 'এখনো কোনো অপশন সিলেক্ট করেননি (ডিফল্ট ১ মিল ধরা হতে পারে)।';
+          container.innerHTML = `
+            <div class="bg-white border rounded-2xl p-4 space-y-3 shadow-sm border-slate-200">
+              <div class="flex justify-between items-start">
+                <div>
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-base">🛑</span>
+                    <h3 class="text-xs font-bold uppercase text-slate-800">মিল বন্ধের নোটিশ (Meal OFF Notice)</h3>
+                  </div>
+                  <p class="text-[10px] text-slate-400 mt-0.5">কত তারিখ থেকে কত তারিখ পর্যন্ত মিল বন্ধ রাখবেন জানিয়ে দিন</p>
+                </div>
+                <span class="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg shrink-0">OFF Notice</span>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">কবে থেকে বন্ধ (From Date)</label>
+                  <input type="date" id="offFromDate" value="${tomorrowStr}" class="w-full p-2.5 border rounded-xl font-bold text-xs bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                </div>
+                <div>
+                  <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">কবে পুনরায় চালু হবে (Resumes ON)</label>
+                  <input type="date" id="offResumeDate" value="${defaultResumeStr}" class="w-full p-2.5 border rounded-xl font-bold text-xs bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                </div>
+              </div>
+
+              <div>
+                <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">কারণ / নোট (ঐচ্ছিক)</label>
+                <input type="text" id="offNoteInput" placeholder="উদাঃ বাড়ি যাচ্ছি / ট্যুরে যাচ্ছি / পরীক্ষা" class="w-full p-2.5 border rounded-xl text-xs bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              </div>
+
+              <button type="button" onclick="submitMealOffNotice()" class="w-full bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5">
+                <span>🛑</span> মিল বন্ধের নোটিশ সেভ করুন (Submit OFF Notice)
+              </button>
+            </div>
+          `;
         }
-
-        const activeCount = (window.tempSelectedAdvCount !== undefined) ? window.tempSelectedAdvCount : (currentCount !== null ? currentCount : 1);
-
-        container.innerHTML = `
-          <div class="bg-white border rounded-2xl p-4 space-y-3 shadow-sm border-blue-100">
-            <div class="flex justify-between items-start">
-              <div>
-                <div class="flex items-center gap-1.5">
-                  <span class="text-base">📢</span>
-                  <h3 class="text-xs font-bold uppercase text-slate-800">আগামীকালের মিল নোটিস (Advance Notice)</h3>
-                </div>
-                <p class="text-[10px] text-slate-400 mt-0.5">কালকে খাবেন কি খাবেন না আগে থেকেই ম্যানেজারকে জানিয়ে দিন</p>
-              </div>
-              <span class="text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-lg shrink-0">
-                📅 ${tomorrowFormatted}
-              </span>
-            </div>
-
-            <div class="p-2.5 bg-slate-50 border rounded-xl flex justify-between items-center text-xs">
-              <div class="text-[11px] text-slate-600">
-                <span class="font-semibold block text-slate-700">বর্তমান স্ট্যাটাস:</span>
-                ${statusText} ${currentNote ? `<span class="block text-slate-400 italic font-mono text-[10px]">"${currentNote}"</span>` : ''}
-              </div>
-              ${statusBadge}
-            </div>
-
-            <div>
-              <label class="text-[10px] font-bold text-slate-500 uppercase block mb-1.5">কালকে কয়টি মিল খাবেন?</label>
-              <div class="grid grid-cols-4 gap-1.5">
-                <button type="button" onclick="setAdvCountTemp(0)" id="advBtn-0" class="py-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center ${activeCount === 0 ? 'bg-red-500 text-white border-red-600 ring-2 ring-red-300' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'}">
-                  <span class="text-sm">🔴</span>
-                  <span>০ (OFF)</span>
-                </button>
-                <button type="button" onclick="setAdvCountTemp(1)" id="advBtn-1" class="py-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center ${activeCount === 1 ? 'bg-green-600 text-white border-green-700 ring-2 ring-green-300' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'}">
-                  <span class="text-sm">🟢</span>
-                  <span>১ মিল</span>
-                </button>
-                <button type="button" onclick="setAdvCountTemp(2)" id="advBtn-2" class="py-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center ${activeCount === 2 ? 'bg-green-600 text-white border-green-700 ring-2 ring-green-300' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'}">
-                  <span class="text-sm">🟢</span>
-                  <span>২ মিল</span>
-                </button>
-                <button type="button" onclick="setAdvCountTemp(3)" id="advBtn-3" class="py-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center justify-center ${activeCount === 3 ? 'bg-green-600 text-white border-green-700 ring-2 ring-green-300' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'}">
-                  <span class="text-sm">🟢</span>
-                  <span>৩ মিল</span>
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <input type="text" id="advMealNoteInput" value="${currentNote}" placeholder="নোট (ঐচ্ছিক: উদাঃ বাড়ি যাবো / শুধু রাতে খাবো)" class="w-full p-2.5 border rounded-xl text-xs bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500">
-            </div>
-
-            <button type="button" onclick="saveMemberAdvanceMeal()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5">
-              <span>💾</span> আগামীকালের মিল সেভ করুন (${tomorrowFormatted})
-            </button>
-          </div>
-        `;
       } else {
-        // ADMIN VIEW
-        let totalExpected = 0;
-        let onCount = 0;
-        let offCount = 0;
+        // ADMIN VIEW: List of active off notices
+        const activeNotices = state.mealOffNotices.filter(n => n.status === 'active' && n.resumeDate >= todayStr);
 
-        const chips = state.members.map(m => {
-          const adv = tomorrowAdv[m.id];
-          let count = null;
-          let note = '';
-          if (adv !== undefined) {
-            count = adv.count;
-            note = adv.note || '';
-          } else if (state.meals[tomorrowStr] && state.meals[tomorrowStr][m.id] !== undefined) {
-            count = state.meals[tomorrowStr][m.id];
-          }
-
-          if (count === null) {
-            totalExpected += 1;
-            return `
-              <div class="p-2 border rounded-xl bg-slate-50 flex justify-between items-center text-xs">
-                <span class="font-bold text-slate-700">${m.name}</span>
-                <span class="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded font-mono">Not set (def: 1)</span>
+        if (activeNotices.length === 0) {
+          container.innerHTML = `
+            <div class="bg-green-50/60 border border-green-200 rounded-2xl p-3.5 flex justify-between items-center text-xs">
+              <div class="flex items-center gap-2">
+                <span>✅</span>
+                <span class="text-green-800 font-semibold text-xs">বর্তমানে কোনো মেম্বারের মিল বন্ধের নোটিশ নেই (সকলের মিল চালু)</span>
               </div>
-            `;
-          } else if (count === 0) {
-            offCount++;
-            return `
-              <div class="p-2 border border-red-200 rounded-xl bg-red-50 flex justify-between items-center text-xs">
-                <div>
-                  <span class="font-bold text-red-900">${m.name}</span>
-                  ${note ? `<span class="block text-[10px] text-red-600 italic">"${note}"</span>` : ''}
-                </div>
-                <span class="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded">🔴 OFF (০)</span>
-              </div>
-            `;
-          } else {
-            onCount++;
-            totalExpected += count;
-            return `
-              <div class="p-2 border border-green-200 rounded-xl bg-green-50 flex justify-between items-center text-xs">
-                <div>
-                  <span class="font-bold text-green-900">${m.name}</span>
-                  ${note ? `<span class="block text-[10px] text-green-700 italic">"${note}"</span>` : ''}
-                </div>
-                <span class="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded">🟢 ON (${count})</span>
-              </div>
-            `;
-          }
-        }).join('');
-
-        container.innerHTML = `
-          <div class="bg-gradient-to-br from-blue-50/60 to-indigo-50/60 border border-blue-200 rounded-2xl p-4 space-y-3 shadow-xs">
-            <div class="flex justify-between items-start">
-              <div>
+              <span class="text-[10px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-lg">All Active</span>
+            </div>
+          `;
+        } else {
+          container.innerHTML = `
+            <div class="bg-red-50/70 border border-red-200 rounded-2xl p-4 space-y-2.5 shadow-xs">
+              <div class="flex justify-between items-center">
                 <div class="flex items-center gap-1.5">
                   <span class="text-base">📢</span>
-                  <h3 class="text-xs font-bold uppercase text-slate-900">আগামীকালের মিল পূর্বাভাস (Tomorrow: ${tomorrowFormatted})</h3>
+                  <h3 class="text-xs font-bold uppercase text-red-900">মেম্বার মিল বন্ধ নোটিশ (Active OFF Notices)</h3>
                 </div>
-                <p class="text-[10px] text-slate-500 mt-0.5">মেম্বারদের অন/অফ নোটিসের ভিত্তিতে সম্ভাব্য মিল ও বাজার হিসাব</p>
+                <span class="text-xs font-bold bg-red-600 text-white px-2 py-0.5 rounded-lg">
+                  ${activeNotices.length} জন বন্ধ
+                </span>
               </div>
-              <span class="text-xs font-bold bg-blue-600 text-white px-2.5 py-1 rounded-xl shadow-xs shrink-0">
-                সম্ভাব্য মিল: ${totalExpected} টি
-              </span>
-            </div>
 
-            <!-- Status summary pills -->
-            <div class="grid grid-cols-3 gap-2 text-center text-xs">
-              <div class="bg-white p-2 rounded-xl border border-blue-100">
-                <span class="text-[10px] text-slate-400 block font-semibold">সম্ভাব্য মিল</span>
-                <b class="text-base text-blue-600 font-mono">${totalExpected}</b>
-              </div>
-              <div class="bg-white p-2 rounded-xl border border-green-100">
-                <span class="text-[10px] text-green-600 block font-semibold">অন (খাবেন)</span>
-                <b class="text-base text-green-600 font-mono">${onCount} জন</b>
-              </div>
-              <div class="bg-white p-2 rounded-xl border border-red-100">
-                <span class="text-[10px] text-red-600 block font-semibold">অফ (খাবেন না)</span>
-                <b class="text-base text-red-600 font-mono">${offCount} জন</b>
+              <div class="space-y-1.5 max-h-48 overflow-y-auto">
+                ${activeNotices.map(n => `
+                  <div class="p-2.5 border border-red-200 rounded-xl bg-white flex justify-between items-center gap-2 text-xs">
+                    <div>
+                      <div class="flex items-center gap-1.5">
+                        <b class="text-slate-800 font-bold">${n.memberName}</b>
+                        <span class="text-[10px] bg-red-100 text-red-700 font-bold px-1.5 py-0.2 rounded">মিল বন্ধ</span>
+                      </div>
+                      <span class="text-[11px] text-slate-500 block mt-0.5">
+                        ${formatDateNice(n.fromDate)} থেকে বন্ধ &bull; <b class="text-green-700">${formatDateNice(n.resumeDate)} চালু</b>
+                        ${n.note ? ` &bull; <span class="italic text-slate-400">"${n.note}"</span>` : ''}
+                      </span>
+                    </div>
+                    <button type="button" onclick="cancelMemberOffNotice(${n.id})" class="text-red-500 hover:text-red-700 text-xs font-bold px-2 py-1 bg-red-50 hover:bg-red-100 rounded-lg transition shrink-0" title="Cancel notice">
+                      বাতিল
+                    </button>
+                  </div>
+                `).join('')}
               </div>
             </div>
-
-            <!-- Member List Preview -->
-            <div class="space-y-1.5 max-h-48 overflow-y-auto pt-1">
-              ${chips}
-            </div>
-
-            <!-- Load into tomorrow sheet -->
-            <button type="button" onclick="applyAdvanceMealsToTomorrow()" class="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5">
-              <span>👉</span> আগামীকালের এন্ট্রি শিট ওপেন করুন (${tomorrowStr})
-            </button>
-          </div>
-        `;
+          `;
+        }
       }
     }
 
@@ -1961,27 +1910,24 @@
           `;
         } else {
           document.getElementById('mealInputContainer').innerHTML = visibleMembers.map(m => {
-            const currentVal = curMeals[m.id] !== undefined ? curMeals[m.id] : 1;
+            const offNotice = isMemberMealOffOnDate(m.id, curDate);
+            let offBadge = '';
+            let defaultVal = 1;
+            if (offNotice) {
+              defaultVal = 0;
+              offBadge = `<span class="text-[9px] bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded block mt-0.5">🛑 মিল বন্ধ (${formatDateNice(offNotice.fromDate)} হতে ${formatDateNice(offNotice.resumeDate)} পর্যন্ত)${offNotice.note ? ` - ${offNotice.note}` : ''}</span>`;
+            }
+            const currentVal = curMeals[m.id] !== undefined ? curMeals[m.id] : defaultVal;
             const options = [0, 1, 2, 3, 4, 5, 6].map(num => `
                 <option value="${num}" ${currentVal == num ? 'selected' : ''}>${num}</option>
             `).join('');
-
-            const adv = (state.advanceMeals && state.advanceMeals[curDate]) ? state.advanceMeals[curDate][m.id] : null;
-            let advBadge = '';
-            if (adv) {
-              if (adv.count === 0) {
-                advBadge = `<span class="text-[9px] bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded block mt-0.5">📢 Advance: OFF (0)${adv.note ? ` - ${adv.note}` : ''}</span>`;
-              } else {
-                advBadge = `<span class="text-[9px] bg-green-100 text-green-700 font-bold px-1.5 py-0.5 rounded block mt-0.5">📢 Advance: ${adv.count} Meal(s)${adv.note ? ` - ${adv.note}` : ''}</span>`;
-              }
-            }
 
             return `
                 <div class="flex items-center justify-between p-2.5 border rounded-xl bg-slate-50 gap-2">
                     <div class="min-w-0">
                       <span class="text-xs font-bold text-slate-800 block truncate">${m.name}</span>
                       ${role === 'member' ? '<span class="text-[10px] text-green-600 font-semibold block">(Your Meal)</span>' : ''}
-                      ${advBadge}
+                      ${offBadge}
                     </div>
                     <select id="in-m-${m.id}" class="w-24 p-2 border rounded-lg text-xs font-bold bg-white text-center text-slate-800 focus:outline-none focus:border-blue-500 shrink-0">
                         ${options}
